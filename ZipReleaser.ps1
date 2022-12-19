@@ -69,19 +69,6 @@ function Read-DirPathFromHost {
     return $thePath
 }
 
-function Invoke-CloneGitRepository {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$RepoUrl,
-        [Parameter(Mandatory = $true)]
-        [string]$DestinationPath
-    )
-
-    $ok = (git clone $RepoUrl $DestinationPath --progress 2>&1)
-    return $ok
-}
-
 class ConfigElement {
     # If set to $true, will prevent the script from asking for user-input
     # each time, instead will just use the value specified in the config hashtable.
@@ -365,7 +352,6 @@ function Read-JsonConfig {
         return $theContainer
     }
 }
-
 
 function Start-MainOperation {
     [ConfigContainer]$projectConfigContainer = Read-JsonConfig

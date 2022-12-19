@@ -41,6 +41,21 @@ function ConvertFrom-PSObject {
     }
 }
 
+
+function Invoke-CloneGitRepository {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$RepoUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath
+    )
+
+    $ok = (git clone $RepoUrl $DestinationPath --progress 2>&1)
+    return $ok
+}
+
+
 # fetches and returns the current git branch that we are on.
 # If the current directory are we are in at the moment, doesn't belong to
 # any git repository (AKA: does not have .git dir and its content), this
