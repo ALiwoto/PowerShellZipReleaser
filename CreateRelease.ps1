@@ -76,5 +76,10 @@ function ConvertFrom-SlnFile {
     # $myStrs.EndsWith("}`"") | Write-Host
 }
 
-ConvertFrom-SlnFile -SlnPath "E:\abedini\projects\GUISharp\GUISharp.sln"
+# This line here is only for testing-purposes, please do not panic :)
+# It will be removed once we shift the content of this file to a stable script file,
+# till then, this script file will remain as a testing script file.
+$ok = ConvertFrom-SlnFile -SlnPath "E:\abedini\projects\GUISharp\GUISharp.sln"
+
+$ok | Write-Host
 

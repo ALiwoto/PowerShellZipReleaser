@@ -106,6 +106,14 @@ class ConfigElement {
     # operation.
     [string]$OriginalPWD = $null
 
+    # Set to `$true` when and only when the user wants us to make zip files for every
+    # single project defined in this repository separately.
+    # (so count of .csproj files == count of .zip files)
+    # If this is set to `$false`, we will build all once, and pack all once,
+    # in other words, no matter how many .csproj files are defined in this repository,
+    # at the end, we will have only 1 .zip file.
+    [bool]$PackSeparatedPackages = $false
+
     ConfigElement() {
         # no params here, default value
         $this.GitUpstreamUri = $null
@@ -295,6 +303,7 @@ function Start-MainOperation {
     Set-Location $currentConfig.DestinationPath
 
     $currentConfig.SetTargetBranch()
+
     
     "Done!" | Write-Host
     Set-Location $currentConfig.OriginalPWD
