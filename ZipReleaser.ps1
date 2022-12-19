@@ -1,3 +1,7 @@
+# PowerShellZipReleaser
+# Copyright (C) 2022 ALiwoto
+# This file is subject to the terms and conditions defined in
+# file 'LICENSE', which is part of the source code.
 
 $ZipReleaserVersionString = "1.0.0"
 
@@ -114,6 +118,10 @@ class ConfigElement {
     # at the end, we will have only 1 .zip file.
     [bool]$PackSeparatedPackages = $false
 
+    # This property is here only and only because we want it to be cached in the
+    # memory. It is NOT supplie by the user.
+    [string[]]$AllRepoTags = $null
+
     ConfigElement() {
         # no params here, properties will keep their default values
     }
@@ -228,8 +236,80 @@ class ConfigElement {
         }
     }
 
-    [void]SetTargetTag() {
+    [bool]SwitchToTag([string]$TagName) {
+        $this.GetAllRepoTags()
+        if ($this.AllRepoTags -contains $TagName) {
+            $this.TargetTag = $TagName
+            return $true
+        }
 
+        return $false
+    }
+
+    [string[]]GetAllRepoTags([bool]$ForceFetch = $false) {
+        if ($null -ne $this.AllRepoTags -and $this.AllRepoTags.Length -gt 0 -and -not $ForceFetch) {
+            # Just return the cached value in the momery if all of the tags are already fetch'ed.
+            # This will increase running-time a lot, specially when we have large amount of tags in
+            # large repositories and don't want to receive and parse them all again each time.
+            return $this.AllRepoTags
+        }
+
+        $this.AllRepoTags = Get-AllGitTags
+        return $this.AllRepoTags
+    }
+
+    [void]SetTargetTag() {
+        $defaultValuePrompt = $null
+        if (-not [string]::IsNullOrEmpty($this.TargetTag)) {
+            if ($this.UseConfigForAll) {
+                if ($this.TargetTag -eq "latest") {
+                    # make sure to get the latest tag and set it here, if
+                    # user has "latest" value set in their config file.
+                    $this.TargetTag = Get-LatestGitTag
+                    return
+                }
+                
+                # All is good, we don't need to prompt user for getting input string.
+                return
+            }
+
+            $defaultValuePrompt = "use default config ($($this.TargetTag))"
+        }
+        else {
+            $this.TargetTag = Get-CurrentGitBranch
+            $defaultValuePrompt = "use the latest tag"
+        }
+
+        # make sure the repo tags are cached.
+        $this.GetAllRepoTags()
+
+        $tagsListStr = "Here is a list of tags for this repository:`n"
+        for ($i = 0; $i -lt $this.AllRepoTags.Count; $i++) {
+            $tagsListStr += "$i- $($this.AllRepoTags[$i])`n"
+        } 
+        
+        $tagsListStr| Write-Host
+        "The latest tag for this repository is `"$($this.TargetBranch)`"" | Write-Host
+        while ($true) {
+            $tagNameToSwitch = "name of the target tag to switch to (or empty " +
+            "string to $defaultValuePrompt)" | Read-ValueFromHost
+
+            if ([string]::IsNullOrEmpty($tagNameToSwitch)) {
+                # we will stay on this branch.
+                break
+            }
+
+            if (-not ($this.SwitchToTag($tagNameToSwitch))) {
+                "Invalid tag name has provided (or there were " +
+                "some other issues when switching).`n"+
+                "Please re-confirm the existence of the tag." | Write-Host
+                continue
+            }
+
+            # $this.SwitchToTag method has already changed the value
+            # of $this.TargetTag, there is no need to change it again here.
+            break
+        }
     }
 }
 
