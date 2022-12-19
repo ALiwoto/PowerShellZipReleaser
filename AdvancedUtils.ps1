@@ -52,3 +52,32 @@ function Get-CurrentGitBranch {
         return ($theBranch -as [string]).Substring(2, $theBranch.Length - 2)
     }
 }
+
+function Get-LatestGitTag {
+    [CmdletBinding()]
+    param (
+    )
+    
+    process {
+        $gitOutput = (git describe --tags --abbrev=0 2>&1)
+        if ($gitOutput -is [string]) {
+            return $gitOutput.Trim()
+        } elseif ($gitOutput -is [string[]]) {
+            foreach ($currentOutput in $gitOutput) {
+                $currentOutput = ($currentOutput -as [string]).Trim()
+                if ($currentOutput.StartsWith("v")) {
+                    return $currentOutput
+                }
+            }
+        } elseif ($null -eq $gitOutput) {
+            "Unexpected `$null result received from git command.`n" +
+            "Are you sure you have git client installed on this machine?" | Write-Error
+            return $null
+        }
+
+        "Unexpected result of type $($gitOutput.GetType().FullName) received from " +
+        "git command." | Write-Error
+        return $null
+    }
+}
+
