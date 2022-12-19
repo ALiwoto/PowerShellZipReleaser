@@ -115,14 +115,16 @@ class ConfigElement {
     [bool]$PackSeparatedPackages = $false
 
     ConfigElement() {
-        # no params here, default value
-        $this.GitUpstreamUri = $null
-        $this.DestinationPath = $null
+        # no params here, properties will keep their default values
     }
 
-    ConfigElement($ParsedValue) {
+    # Creates a new instance of ConfigElement class.
+    # Please do notice that the passed-argument MUST be an instance of [hashtable] type.
+    ConfigElement([hashtable]$ParsedValue) {
         $this.GitUpstreamUri = $ParsedValue["upstream_url"]
         $this.DestinationPath = $ParsedValue["destination_path"]
+        $this.TargetBranch = $ParsedValue["target_branch"]
+        $this.TargetTag = $ParsedValue["target_tag"]
     }
 
     [void]SetDestinationPath() {
@@ -197,6 +199,10 @@ class ConfigElement {
             $this.TargetBranch = $branchNameToSwitch
             break
         }
+    }
+
+    [void]SetTargetTag() {
+
     }
 }
 

@@ -3,7 +3,9 @@
         {
             "name": "default",
             "upstream_url": "https://github.com/ALiwoto/MTProto.NET",
-            "destination_path": ".\\Clones\\"
+            "destination_path": ".\\Clones\\mtproto1",
+            "target_branch": "default",
+            "target_tag": "latest"
         }
     ]
 }
