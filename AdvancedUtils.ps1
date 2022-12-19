@@ -41,7 +41,9 @@ function ConvertFrom-PSObject {
     }
 }
 
-
+# Uses the famous git clone command to clone a repository from the given
+# upstream url. This function will also return the whole output given by
+# git clone command. 
 function Invoke-CloneGitRepository {
     [CmdletBinding()]
     param (
@@ -54,7 +56,6 @@ function Invoke-CloneGitRepository {
     $ok = (git clone $RepoUrl $DestinationPath --progress 2>&1)
     return $ok
 }
-
 
 # fetches and returns the current git branch that we are on.
 # If the current directory are we are in at the moment, doesn't belong to
@@ -115,6 +116,10 @@ function Get-LatestGitTag {
     }
 }
 
+# This function fetches and returns a list of all of git tags created in this
+# repository. It will report the error by calling Write-Error cmdlet.
+# Please do notice that if the current git repository (in the current directory)
+# doesn't have any tags, this function will report an error and return $null.
 function Get-AllGitTags {
     [CmdletBinding()]
     param (
