@@ -246,6 +246,10 @@ class ConfigElement {
         return $false
     }
 
+    [string[]]GetAllRepoTags() {
+        return $this.GetAllRepoTags($false)
+    }
+
     [string[]]GetAllRepoTags([bool]$ForceFetch = $false) {
         if ($null -ne $this.AllRepoTags -and $this.AllRepoTags.Length -gt 0 -and -not $ForceFetch) {
             # Just return the cached value in the momery if all of the tags are already fetch'ed.
@@ -266,6 +270,7 @@ class ConfigElement {
                     # make sure to get the latest tag and set it here, if
                     # user has "latest" value set in their config file.
                     $this.TargetTag = Get-LatestGitTag
+                    "Target tag has been sent to $($this.TargetTag)!" | Write-Host
                     return
                 }
                 
@@ -273,10 +278,10 @@ class ConfigElement {
                 return
             }
 
-            $defaultValuePrompt = "use default config ($($this.TargetTag))"
+            $defaultValuePrompt = "use config value ($($this.TargetTag))"
         }
         else {
-            $this.TargetTag = Get-CurrentGitBranch
+            $this.TargetTag = Get-LatestGitTag
             $defaultValuePrompt = "use the latest tag"
         }
 
@@ -289,15 +294,20 @@ class ConfigElement {
         } 
         
         $tagsListStr| Write-Host
-        "The latest tag for this repository is `"$($this.TargetBranch)`"" | Write-Host
+        "The latest tag for this repository is `"$($this.TargetTag)`"" | Write-Host
         while ($true) {
             $tagNameToSwitch = "name of the target tag to switch to (or empty " +
             "string to $defaultValuePrompt)" | Read-ValueFromHost
 
             if ([string]::IsNullOrEmpty($tagNameToSwitch)) {
-                # we will stay on this branch.
+                # we will stay on the default-provided tag.
                 break
             }
+
+            try {
+                $tagNameToSwitch = $this.AllRepoTags[[int]$tagNameToSwitch]
+            }
+            catch {}
 
             if (-not ($this.SwitchToTag($tagNameToSwitch))) {
                 "Invalid tag name has provided (or there were " +
@@ -305,11 +315,12 @@ class ConfigElement {
                 "Please re-confirm the existence of the tag." | Write-Host
                 continue
             }
-
-            # $this.SwitchToTag method has already changed the value
-            # of $this.TargetTag, there is no need to change it again here.
-            break
         }
+
+        # $this.SwitchToTag method has already changed the value
+        # of $this.TargetTag, there is no need to change it again here.
+        "Target tag has been set to $($this.TargetTag)!" | Write-Host
+        break
     }
 }
 
@@ -416,6 +427,7 @@ function Start-MainOperation {
     Set-Location $currentConfig.DestinationPath
 
     $currentConfig.SetTargetBranch()
+    $currentConfig.SetTargetTag()
 
     
     "Done!" | Write-Host
