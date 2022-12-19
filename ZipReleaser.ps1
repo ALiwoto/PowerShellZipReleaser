@@ -1,6 +1,9 @@
 
 $ZipReleaserVersionString = "1.0.0"
 
+# dot-source advanced-utils file.
+. "./AdvancedUtils.ps1"
+
 function Show-WrongValueEntered {
     [CmdletBinding()]
     param (
@@ -23,7 +26,7 @@ function Read-ValueFromHost {
         [string]$ValueDefault = $null
     )
     
-    $theInput = [string](Read-Host -Prompt "Please enter the $ValueName").Trim()
+    $theInput = ([string](Read-Host -Prompt "Please enter the $ValueName")).Trim()
     if ([string]::IsNullOrEmpty($theInput)) {
         return $ValueDefault
     }
@@ -101,17 +104,20 @@ class ConfigElement {
             # the value is set, but should be displayed for the user
             # to confirm.
             $this.DestinationPath = ("Enter destination path to clone the repo (default: " +
-            $this.DestinationPath + ")") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
+            "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
             return
         }
 
         $this.DestinationPath = ("Enter destination path to clone the repo" | Read-DirPathFromHost)
-        $this.DestinationPath | Write-Host
+        if ($this.DestinationPath -is [string]) {
+            $this.DestinationPath = $this.DestinationPath.Trim()
+        }
+
+        "Cloning your repository to $($this.DestinationPath)" | Write-Host
     }
 
     [bool]CloneGitRepository() {
-        [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri`
-            -DestinationPath $this.DestinationPath)
+        [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri -DestinationPath $this.DestinationPath)
         if ($null -ne $gitOutput -and $gitOutput.Length -ge 1) {
             $gitOutput[-1] | Write-Host
         }
@@ -142,6 +148,12 @@ class ConfigContainer {
     }
 }
 
+function ConvertFrom-Ok {
+    param (
+        $theCustomObject
+    )
+    
+}
 
 function Read-JsonConfig {
     [CmdletBinding()]
@@ -155,7 +167,7 @@ function Read-JsonConfig {
             return $null
         }
     
-        $configValue = (Get-Content -Path $Path -Raw | ConvertFrom-Json)[0]
+        $configValue = (Get-Content -Path $Path -Raw | ConvertFrom-Json) | ConvertFrom-PSObject
         $theContainer = [ConfigContainer]::new()
         foreach ($currentConfig in $configValue["configs"]) {
             $theContainer.AddConfig($currentConfig["name"], $currentConfig)
