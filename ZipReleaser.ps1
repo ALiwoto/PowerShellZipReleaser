@@ -3,6 +3,8 @@
 # This file is subject to the terms and conditions defined in
 # file 'LICENSE', which is part of the source code.
 
+using module ".\CreateCsRelease.psm1"
+
 $ZipReleaserVersionString = "1.0.0"
 
 # dot-source advanced-utils file.
@@ -108,6 +110,8 @@ class ConfigElement {
     # This property is here only and only because we want it to be cached in the
     # memory. It is NOT supplie by the user.
     [string[]]$AllRepoTags = $null
+
+    [CsProjectContainer[]]$CsProjectContainers
 
     ConfigElement() {
         # no params here, properties will keep their default values
@@ -309,6 +313,12 @@ class ConfigElement {
         "Target tag has been set to $($this.TargetTag)!" | Write-Host
         break
     }
+
+    [void]DiscoverProjects() {
+        $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this"  +
+        " repository to a single .zip file?`n" +
+        "(Y/N)" | Read-ValueFromHost).Trim() -ne "y"
+    }
 }
 
 class ConfigContainer {
@@ -414,6 +424,7 @@ function Start-MainOperation {
 
     $currentConfig.SetTargetBranch()
     $currentConfig.SetTargetTag()
+    $currentConfig.DiscoverProjects()
 
     
     "Done!" | Write-Host

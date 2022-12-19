@@ -1,6 +1,4 @@
 
-
-
 class CsProjectContainer {
     [string]$CsProjectFilePath
     [string]$RawContent
