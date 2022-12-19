@@ -79,11 +79,32 @@ function Invoke-CloneGitRepository {
 }
 
 class ConfigElement {
+    # If set to $true, will prevent the script from asking for user-input
+    # each time, instead will just use the value specified in the config hashtable.
     [bool]$UseConfigForAll = $false
+
+    # The git-upstream uri (which points to the git repository host provider such as GitHub.com, etc)
     [uri]$GitUpstreamUri = $null
+
+    # The destination path in which we will be cloning the repository and do our operations.
+    # The destination path for putting zip file will be different tho, this value here only
+    # points to the place where the repository will be located on our local machine.
     [string]$DestinationPath = $null
+
+    # The target tag. The tag in which we will be working on to build and pack a zip file out of it.
     [string]$TargetTag = $null
+
+    # The target branch we will be switching to. User has the choice to give us an empty input,
+    # which means we will just stay on the current default branch of the repository (and this varible
+    # will be set to that branch as well.)
     [string]$TargetBranch = $null
+
+    # The original PWD variable in which the script has been started. Normally the script has to
+    # go to the location in which the repository is located on local machine (AKA: $DestinationPath),
+    # for doing operations such as "git branch", "git checkout", "git describe", etc.
+    # It's ideal for the script to do `Set-Location $OriginalPWD` after it's done for the current
+    # operation.
+    [string]$OriginalPWD = $null
 
     ConfigElement() {
         # no params here, default value
@@ -105,12 +126,12 @@ class ConfigElement {
 
             # the value is set, but should be displayed for the user
             # to confirm.
-            $this.DestinationPath = ("Enter destination path to clone the repo (default: " +
-            "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
+            $this.DestinationPath = ("destination path to clone the repo (default: " +
+                "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
             return
         }
 
-        $this.DestinationPath = ("Enter destination path to clone the repo" | Read-DirPathFromHost)
+        $this.DestinationPath = ("destination path to clone the repo" | Read-DirPathFromHost)
         if ($this.DestinationPath -is [string]) {
             $this.DestinationPath = $this.DestinationPath.Trim()
         }
@@ -135,7 +156,9 @@ class ConfigElement {
             # [string] types, so be better be using (-as [string]) for it.
             $currentGitOutput = ($currentGitOutput -as [string])
 
-            if ($currentGitOutput.Contains("Already on") -or $currentGitOutput.Contains("Switched to")) {
+            if ($currentGitOutput.Contains("Already on") -or
+                $currentGitOutput.Contains("Switched to") -or 
+                $currentGitOutput.Contains("Your branch is up to date with")) {
                 # All is good. let it pass
                 return $true
             }
@@ -146,9 +169,10 @@ class ConfigElement {
 
     [void]SetTargetBranch() {
         $this.TargetBranch = Get-CurrentGitBranch
+
         "We are currently on branch `"$($this.TargetBranch)`"" | Write-Host
         while ($true) {
-            $branchNameToSwitch = "Select name of the new branch to switch to (or empty "+
+            $branchNameToSwitch = "name of the new branch to switch to (or empty " +
             "string to to stay here)" | Read-ValueFromHost
 
             if ([string]::IsNullOrEmpty($branchNameToSwitch)) {
@@ -157,7 +181,7 @@ class ConfigElement {
             }
 
             if (-not ($this.SwitchToBranch($branchNameToSwitch))) {
-                "Invalid branch name has provided (or there were "+
+                "Invalid branch name has provided (or there were " +
                 "some other issues when switching)." | Write-Host
                 continue
             }
@@ -267,9 +291,14 @@ function Start-MainOperation {
         return $true
     }
 
+    $currentConfig.OriginalPWD = $PWD
+    Set-Location $currentConfig.DestinationPath
+
     $currentConfig.SetTargetBranch()
     
     "Done!" | Write-Host
+    Set-Location $currentConfig.OriginalPWD
+
     return $true
 }
 

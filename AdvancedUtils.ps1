@@ -49,7 +49,6 @@ function Get-CurrentGitBranch {
             return $null
         }
 
-        return ($theBranch -as [string]).Substring(1, $theBranch.Length - 2)
+        return ($theBranch -as [string]).Substring(2, $theBranch.Length - 2)
     }
 }
-
