@@ -18,17 +18,48 @@ function Read-ValueFromHost {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        $ValueName,
+        [string]$ValueName,
         [Parameter(Mandatory = $false)]
-        $ValueDefault = $null
+        [string]$ValueDefault = $null
     )
     
-    $theInput = (Read-Host -Prompt "Please enter the $ValueName")
+    $theInput = [string](Read-Host -Prompt "Please enter the $ValueName").Trim()
     if ([string]::IsNullOrEmpty($theInput)) {
         return $ValueDefault
     }
 
     return $theInput
+}
+
+function Read-DirPathFromHost {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$ValueName,
+        [Parameter(Mandatory = $false)]
+        [string]$ValueDefault = $null,
+        [Parameter(Mandatory = $false)]
+        $CreateIfNotExist = $true
+    )
+
+    $thePath = Read-ValueFromHost -ValueName $ValueName -ValueDefault $ValueDefault
+    if ([string]::IsNullOrEmpty($thePath)) {
+        return $thePath
+    }
+
+    if (-not ($thePath[-1] -eq "/" -or $thePath[-1] -eq "\")) {
+        $thePath += "\"
+    }
+
+    if ((-not ([System.IO.Directory]::Exists($thePath)))) {
+        [System.IO.Directory]::CreateDirectory($thePath)
+        # looks like creating directory takes a bit time, and then git clone
+        # command will fail because of this.. looks like git clone command
+        # entirely runs at background, or something like that?
+        Start-Sleep -Milliseconds 1200
+    }
+
+    return $thePath
 }
 
 function Invoke-CloneGitRepository {
@@ -40,16 +71,19 @@ function Invoke-CloneGitRepository {
         [string]$DestinationPath
     )
 
-    return (git clone $RepoUrl $DestinationPath)
+    $ok = (git clone $RepoUrl $DestinationPath --progress 2>&1)
+    return $ok
 }
 
 class ConfigElement {
     [bool]$UseConfigForAll = $false
-    [uri]$GitUpstreamUri
-    [string]$DestinationPath
+    [uri]$GitUpstreamUri = $null
+    [string]$DestinationPath = $null
 
     ConfigElement() {
         # no params here, default value
+        $this.GitUpstreamUri = $null
+        $this.DestinationPath = $null
     }
 
     ConfigElement($ParsedValue) {
@@ -58,7 +92,7 @@ class ConfigElement {
     }
 
     [void]SetDestinationPath() {
-        if ($this.DestinationPath) {
+        if (-not [string]::IsNullOrEmpty($this.DestinationPath)) {
             if ($this.UseConfigForAll) {
                 # all is good
                 return
@@ -66,16 +100,24 @@ class ConfigElement {
 
             # the value is set, but should be displayed for the user
             # to confirm.
-            $this.DestinationPath = "Enter destination path to clone the repo (default: " +
-            $this.DestinationPath + ")" | Read-ValueFromHost -ValueDefault $this.DestinationPath
+            $this.DestinationPath = ("Enter destination path to clone the repo (default: " +
+            $this.DestinationPath + ")") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
             return
         }
 
-        $this.DestinationPath = "Enter destination path to clone the repo" | Read-ValueFromHost
+        $this.DestinationPath = ("Enter destination path to clone the repo" | Read-DirPathFromHost)
+        $this.DestinationPath | Write-Host
     }
 
-    [void]CloneGitRepository() {
-        Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri -DestinationPath $this.DestinationPath
+    [bool]CloneGitRepository() {
+        [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri`
+            -DestinationPath $this.DestinationPath)
+        if ($null -ne $gitOutput -and $gitOutput.Length -ge 1) {
+            $gitOutput[-1] | Write-Host
+        }
+
+        $ok = ([System.IO.Directory]::Exists($this.DestinationPath + ".git"))
+        return $ok
     }
 
 }
@@ -113,7 +155,7 @@ function Read-JsonConfig {
             return $null
         }
     
-        $configValue = Get-Content -Path $Path -Raw | ConvertFrom-Json -AsHashtable
+        $configValue = (Get-Content -Path $Path -Raw | ConvertFrom-Json)[0]
         $theContainer = [ConfigContainer]::new()
         foreach ($currentConfig in $configValue["configs"]) {
             $theContainer.AddConfig($currentConfig["name"], $currentConfig)
@@ -130,6 +172,9 @@ function Start-MainOperation {
     [ConfigElement]$currentConfig = $null
     
     while ($true) {
+        # reset variables.
+        $currentConfig = $null
+
         $userInput = ("Git-upstream url (or name of your config)" | Read-ValueFromHost)
         if ([string]::IsNullOrWhiteSpace($userInput)) {
             "Git-upstream url (or a valid config name)" | Show-WrongValueEntered
@@ -144,7 +189,7 @@ function Start-MainOperation {
             $currentConfig = [ConfigElement]::new()
             $currentConfig.GitUpstreamUri = $userInput
         }
-        elseif ($null -ne $projectConfigContainer.Contains($userInput)) {
+        elseif ($null -ne $projectConfigContainer -and $projectConfigContainer.Contains($userInput)) {
             $currentConfig = $projectConfigContainer.GetConfig($userInput)
         }
         elseif (Test-Path ("$userInput.config.json")) {
@@ -171,9 +216,14 @@ function Start-MainOperation {
     }
 
     $currentConfig.SetDestinationPath()
-    $currentConfig.CloneGitRepository()
+    if (-not $currentConfig.CloneGitRepository()) {
+        "Git clone operation has failed! Please check the url and destination " +
+        "path and try again." | Write-Host
+        return $true
+    }
     
     "Done!" | Write-Host
+    return $true
 }
 
 
