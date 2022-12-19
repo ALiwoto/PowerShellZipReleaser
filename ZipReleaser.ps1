@@ -178,12 +178,39 @@ class ConfigElement {
     }
 
     [void]SetTargetBranch() {
-        $this.TargetBranch = Get-CurrentGitBranch
+        $defaultValuePrompt = $null
+        if (-not [string]::IsNullOrEmpty($this.TargetBranch)) {
+            if ($this.UseConfigForAll) {
+                if ($this.TargetBranch -ne "default") {
+                    if (-not ($this.SwitchToBranch($this.TargetBranch))) {
+                        "Invalid branch name has provided (or there were " +
+                        "some other issues when switching)." | Write-Host
+                        return
+                    }
+
+                    # All is good, we don't need to prompt user for getting input string.
+                    return
+                }
+
+                # When user has set "default" in their config file, it means
+                # we will have to fetch the current branch, and don't switch to
+                # any branch at all.
+                $this.TargetBranch = Get-CurrentGitBranch
+                return
+            }
+
+            $defaultValuePrompt = "use default config "
+        }
+        else {
+            $this.TargetBranch = Get-CurrentGitBranch
+            $defaultValuePrompt = "stay at current branch"
+        }
+
 
         "We are currently on branch `"$($this.TargetBranch)`"" | Write-Host
         while ($true) {
             $branchNameToSwitch = "name of the new branch to switch to (or empty " +
-            "string to to stay here)" | Read-ValueFromHost
+            "string to $defaultValuePrompt)" | Read-ValueFromHost
 
             if ([string]::IsNullOrEmpty($branchNameToSwitch)) {
                 # we will stay on this branch.
