@@ -82,6 +82,8 @@ class ConfigElement {
     [bool]$UseConfigForAll = $false
     [uri]$GitUpstreamUri = $null
     [string]$DestinationPath = $null
+    [string]$TargetTag = $null
+    [string]$TargetBranch = $null
 
     ConfigElement() {
         # no params here, default value
@@ -126,6 +128,44 @@ class ConfigElement {
         return $ok
     }
 
+    [bool]SwitchToBranch([string]$BranchName) {
+        $gitOutputs = (git checkout $BranchName)
+        foreach ($currentGitOutput in $gitOutputs) {
+            # $currentGitOutput here can be [System.Management.Automation.ErrorRecord] or
+            # [string] types, so be better be using (-as [string]) for it.
+            $currentGitOutput = ($currentGitOutput -as [string])
+
+            if ($currentGitOutput.Contains("Already on") -or $currentGitOutput.Contains("Switched to")) {
+                # All is good. let it pass
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    [void]SetTargetBranch() {
+        $this.TargetBranch = Get-CurrentGitBranch
+        "We are currently on branch `"$($this.TargetBranch)`"" | Write-Host
+        while ($true) {
+            $branchNameToSwitch = "Select name of the new branch to switch to (or empty "+
+            "string to to stay here)" | Read-ValueFromHost
+
+            if ([string]::IsNullOrEmpty($branchNameToSwitch)) {
+                # we will stay on this branch.
+                break
+            }
+
+            if (-not ($this.SwitchToBranch($branchNameToSwitch))) {
+                "Invalid branch name has provided (or there were "+
+                "some other issues when switching)." | Write-Host
+                continue
+            }
+
+            $this.TargetBranch = $branchNameToSwitch
+            break
+        }
+    }
 }
 
 class ConfigContainer {
@@ -146,13 +186,6 @@ class ConfigContainer {
     [bool]Contains([string]$Name) {
         return $this.AllConfigs.Contains($Name)
     }
-}
-
-function ConvertFrom-Ok {
-    param (
-        $theCustomObject
-    )
-    
 }
 
 function Read-JsonConfig {
@@ -233,6 +266,8 @@ function Start-MainOperation {
         "path and try again." | Write-Host
         return $true
     }
+
+    $currentConfig.SetTargetBranch()
     
     "Done!" | Write-Host
     return $true

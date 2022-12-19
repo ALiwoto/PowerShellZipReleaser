@@ -36,30 +36,20 @@ function ConvertFrom-PSObject {
     }
 }
 
-class HashtableUtils {
-    static [object]ConvertToHashtable([hashtable]$theHashtable = $null, $theObject) {
-        if ($null -eq $theHashtable) {
-            $theHashtable = [hashtable]::new()
+function Get-CurrentGitBranch {
+    [CmdletBinding()]
+    param (
+    )
+    
+    process {
+        $theBranch = (git branch 2>&1) -split "\n" | Where-Object {$_.StartsWith("*") }
+        if ($null -eq $theBranch) {
+            # putting this just in case of exceptional situations (like not being in a dir with .git dir, etc).
+            # we might want to change the behaviour of it in future.
+            return $null
         }
 
-        if ($theObject -is [System.Management.Automation.PSCustomObject]) {
-            $theObject.PSObject.Properties | ForEach-Object { $configHashtable[$_.Name] = [HashtableUtils]::ConvertToHashtable($_) }
-        }
-        elseif ($theObject -is [System.Management.Automation.PSNoteProperty]) {
-            if ($theObject.Value -is [System.Object[]]) {
-
-            }
-        }
-        else {
-            "ok" | Write-Debug
-        }
-
-        return $theHashtable
+        return ($theBranch -as [string]).Substring(1, $theBranch.Length - 2)
     }
-
-    static [object]ConvertFromArray($theObject) {
-
-        return $null
-    }
-
 }
+
