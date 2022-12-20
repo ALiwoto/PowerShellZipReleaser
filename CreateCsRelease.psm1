@@ -38,7 +38,7 @@ class CsProjectContainer {
 function Split-StringValue {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory, ValueFromPipeline)]
+        [Parameter(Mandatory = $true, ValueFromPipeline)]
         [string]$InputObject,
         [string[]]$Separators = " "
     )
@@ -60,37 +60,41 @@ function Split-StringValue {
 # This function tries to parse the contents inside of a .sln file (visual studio solution file)
 # and returns an array of CsProjectContainer class instances.
 function ConvertFrom-SlnFile {
-    param
-    (
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [string]$SlnPath
     )
     
-    $allContent = Get-Content -Path $SlnPath -Raw
-
-    # parsed value will be something like this:
-    # "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GUISharp", "GUISharp\GUISharp.csproj", "{6CB5C21A-EB16-48D6-B98A-F18D7CE46785}"
-    $projectsStrs = $allContent | Split-StringValue -Separators @("Project(", "EndProject") | Where-Object {
-        $_.StartsWith("`"{") -and $_.EndsWith("}`"")
-    }
+    process {
+        [string]$allContent = Get-Content -Path $SlnPath -Raw
+        [string]$parentPath = (Split-Path -Path $SlnPath) + [System.IO.Path]::DirectorySeparatorChar
     
-    [CsProjectContainer[]]$allCsProjectContainers = @()
-    foreach ($currentProjectStr in $projectsStrs) {
-        # csInfos will be something like this:
-        # 0- {FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}")
-        # 1- "GUISharp"
-        # 2- "GUISharp\GUISharp.csproj"
-        # 3- "{6CB5C21A-EB16-48D6-B98A-F18D7CE46785}"
-        # do note that 0th index is useless for us here, because it's just a unique-id assigned to the current
-        # solution (ig? because it's shared between all of the csproject in the solution, most of the times.).
-        # index 1 is the project name;
-        # index 2 is the project path;
-        # index 3 is the project unique-id;
-        $csInfos = $currentProjectStr | Split-StringValue -Separators @("=", ",") | ForEach-Object {
-            $_.Trim("`"")
+        # parsed value will be something like this:
+        # "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GUISharp", "GUISharp\GUISharp.csproj", "{6CB5C21A-EB16-48D6-B98A-F18D7CE46785}"
+        $projectsStrs = $allContent | Split-StringValue -Separators @("Project(", "EndProject") | Where-Object {
+            $_.StartsWith("`"{") -and $_.EndsWith("}`"")
         }
-        $allCsProjectContainers += [CsProjectContainer]::new($csInfos[2], $csInfos[1], $null, $csInfos[3])
+        
+        [CsProjectContainer[]]$allCsProjectContainers = @()
+        foreach ($currentProjectStr in $projectsStrs) {
+            # csInfos will be something like this:
+            # 0- {FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}")
+            # 1- "GUISharp"
+            # 2- "GUISharp\GUISharp.csproj"
+            # 3- "{6CB5C21A-EB16-48D6-B98A-F18D7CE46785}"
+            # do note that 0th index is useless for us here, because it's just a unique-id assigned to the current
+            # solution (ig? because it's shared between all of the csproject in the solution, most of the times.).
+            # index 1 is the project name;
+            # index 2 is the project's RELATIVE path (we have to convert it to absolute path);
+            # index 3 is the project unique-id;
+            $csInfos = $currentProjectStr | Split-StringValue -Separators @("=", ",") | ForEach-Object {
+                $_.Trim("`"")
+            }
+            $allCsProjectContainers += [CsProjectContainer]::new($parentPath + $csInfos[2], $csInfos[1], $null, $csInfos[3])
+        }
+    
+        return $allCsProjectContainers
     }
-
-    return $allCsProjectContainers
 }
 
