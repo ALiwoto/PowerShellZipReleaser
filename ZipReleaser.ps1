@@ -146,15 +146,25 @@ class ConfigElement {
     # count of succeeded builds/compilations.
     [int]$SucceededBuilts = 0
 
-    # Creates a new instance of COnfigElement class and tries to
+    # The path in remote server in which we will be copying the final
+    # zip file over.
+    [string]$SSHTargetPath = $null
+
+    # The identity file path (which has to be passed with -i arg) for the ssh.
+    [string]$SSHIdentifyFilePath = $null
+
+    # Creates a new instance of ConfigElement class and tries to
     # assign all of the variables via 
     ConfigElement() {
         $this.GitUpstreamUri = $Env:GIT_UPSTREAM_URI -as [string]
         $this.DestinationPath = $Env:DESTINATION_PATH -as [string]
         $this.TargetBranch = $Env:TARGET_BRANCH -as [string]
         $this.TargetTag = $Env:TARGET_TAG -as [string]
+        $this.SSHTargetPath = $Env:SSH_TARGET_PATH -as [string]
+        $this.SSHIdentifyFilePath = $Env:SSH_IDENTIFYFILE_PATH -as [string]
         $this.PackSeparatedPackages = $Env:PACK_SEPARATED_PACKAGE -as [bool]
         $this.ModifyProjectVersion = $Env:MODIFY_PROJECT_VERSION -as [bool]
+        $this.UseConfigForAll = $Env:USE_CONFIG_FOR_ALL -as [bool]
     }
 
     # Creates a new instance of ConfigElement class.
@@ -166,6 +176,7 @@ class ConfigElement {
         $this.TargetTag = $ParsedValue["target_tag"] -as [string]
         $this.PackSeparatedPackages = $ParsedValue["pack_separated_packages"] -as [bool]
         $this.ModifyProjectVersion = $ParsedValue["modify_project_version"] -as [bool]
+        $this.UseConfigForAll = $ParsedValue["use_config_for_all"]
     }
 
     [void]SetDestinationPath() {
