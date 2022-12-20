@@ -198,7 +198,7 @@ class ConfigElement {
             $this.DestinationPath = $this.DestinationPath.Trim()
         }
 
-        if ([System.IO.Directory]::Exists($this.DestinationPath)) {
+        if ([System.IO.Directory]::Exists($this.DestinationPath + ".git")) {
             "Removing items from $($this.DestinationPath) because there are already " +
             "files in it" | Write-Host -ForegroundColor "Red"
             Remove-Item -Path $this.DestinationPath -Recurse -Force -WarningAction "SilentlyContinue"
@@ -478,7 +478,7 @@ class ConfigElement {
                 }
 
                 $tmpStrs = $currentLine.Split(" -> ", 2,"RemoveEmptyEntries")
-                $theProject = $this.GetCsProjectByName($tmpStrs[0])
+                $theProject = $this.GetCsProjectByName($tmpStrs[0].Trim())
                 $theProject.IsBuilt = $true
             }
         }
@@ -528,7 +528,8 @@ class ConfigElement {
 
             $this.SucceededBuilts++
             $myBin = $currentCsProject.GetBinFolderPath()
-            (Copy-Item -Path $myBin -Destination $tmpZipDest -Force -Recurse)
+            $copyingDest = $tmpZipDest + [System.IO.Path]::DirectorySeparatorChar + $currentCsProject.ProjectName
+            (Copy-Item -Path $myBin -Destination ($copyingDest) -Force -Recurse)
             # $ok | Write-Host
         }
 
@@ -538,7 +539,7 @@ class ConfigElement {
         New-Item -Path $pathToSave -ItemType "Directory" -Force -ErrorAction "SilentlyContinue"
 
         $this.ZipFilesPaths += $pathToSave + "$zipRawName-$($this.TargetTag).zip"
-        $ok = Compress-Archive -Path ($tmpZipDest + "\bin") -DestinationPath $this.ZipFilesPaths[0] -CompressionLevel "Optimal" -Force
+        $ok = Compress-Archive -Path ($tmpZipDest + "\*") -DestinationPath $this.ZipFilesPaths[0] -CompressionLevel "Optimal" -Force
         $ok | Write-Host
         return $null
     }
