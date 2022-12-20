@@ -370,7 +370,11 @@ class ConfigElement {
         " repository to a single .zip file?`n" +
         "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
 
-        
+        foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
+            
+            "Discovered Solution File: " | Write-Host -NoNewline -ForegroundColor "Green"
+            $currentSlnFile.PSPath | Get-NormalizedPSPath | Write-Host
+        }
     }
 }
 

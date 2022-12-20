@@ -3,6 +3,19 @@
 # This file is subject to the terms and conditions defined in
 # file 'LICENSE', which is part of the source code.
 
+function Get-NormalizedPSPath {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$ThePSPath
+    )
+    
+    process {
+        $theL = "Microsoft.PowerShell.Core\FileSystem::".Length
+        return $ThePSPath.Substring($theL, $ThePSPath.Length - $theL)
+    }
+}
+
 # This function will convert a PSObject to a [hashtable] object.
 # Mostly used for json parsing. In PowerShell 7.1+ ConvertFrom-Json itself
 # has a switch parameter called `-AsHashtable`, but since we want our script to be able
