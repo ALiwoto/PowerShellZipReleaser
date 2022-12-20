@@ -119,7 +119,7 @@ class ConfigElement {
     # memory. It is NOT supplie by the user.
     [string[]]$AllRepoTags = $null
 
-    [CsProjectContainer[]]$CsProjectContainers
+    [System.Object[]]$CsProjectContainers
 
     ConfigElement() {
         # no params here, properties will keep their default values
@@ -372,9 +372,24 @@ class ConfigElement {
         "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
 
         foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
+            $currentSlnPath = $currentSlnFile.PSPath | Get-NormalizedPSPath
+            $currentCsProjs = $currentSlnPath | ConvertFrom-SlnFile
 
             "Discovered Solution File: " | Write-Host -NoNewline -ForegroundColor "Green"
-            $currentSlnFile.PSPath | Get-NormalizedPSPath | Write-Host
+            $currentSlnPath | Write-Host
+            if ($null -eq $currentCsProjs -or $currentCsProjs.Count -eq 0) {
+                "   Found 0 cs-projects in this solution file." | Write-Host -ForegroundColor "Gray"
+                continue
+            }
+
+            foreach ($currentCsProj in $currentCsProjs) {
+                $this.CsProjectContainers += $currentCsProj
+                "   Found " | Write-Host -NoNewline
+                "$($currentCsProj.ProjectName)" | Write-Host -ForegroundColor "Green"
+                ": $($currentCsProj.CsProjectFilePath)" | Write-Host
+            }
+
+            "`n" | Write-Host
         }
     }
 }
