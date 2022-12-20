@@ -66,8 +66,7 @@ function Invoke-CloneGitRepository {
         [string]$DestinationPath
     )
 
-    $ok = (git clone $RepoUrl $DestinationPath --progress 2>&1)
-    return $ok
+    return (git clone $RepoUrl $DestinationPath --progress 2>&1)
 }
 
 # fetches and returns the current git branch that we are on.

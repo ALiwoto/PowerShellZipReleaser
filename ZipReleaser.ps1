@@ -213,8 +213,7 @@ class ConfigElement {
             $gitOutput[-1] | Write-Host
         }
 
-        $ok = ([System.IO.Directory]::Exists($this.DestinationPath + ".git"))
-        return $ok
+        return ([System.IO.Directory]::Exists($this.DestinationPath + ".git"))
     }
 
     [bool]SwitchToBranch([string]$BranchName) {
@@ -517,7 +516,7 @@ class ConfigElement {
         return $script:ZipReleaserTmpDir + "ZipReleaser-tmp-folder$global:PID"
     }
 
-    [string[]]ZipProjects() {
+    [void]ZipProjects() {
         $tmpZipDest = $this.GetTempZipDestinationPath()
         New-Item -Path ($tmpZipDest) -ItemType "Directory"
         foreach ($currentCsProject in $this.CsProjectContainers) {
@@ -530,7 +529,6 @@ class ConfigElement {
             $myBin = $currentCsProject.GetBinFolderPath()
             $copyingDest = $tmpZipDest + [System.IO.Path]::DirectorySeparatorChar + $currentCsProject.ProjectName
             (Copy-Item -Path $myBin -Destination ($copyingDest) -Force -Recurse)
-            # $ok | Write-Host
         }
 
         $zipRawName = $this.CsProjectContainers[0].SlnName.Substring(0, $this.CsProjectContainers[0].SlnName.Length - 4) 
@@ -539,9 +537,9 @@ class ConfigElement {
         New-Item -Path $pathToSave -ItemType "Directory" -Force -ErrorAction "SilentlyContinue"
 
         $this.ZipFilesPaths += $pathToSave + "$zipRawName-$($this.TargetTag).zip"
-        $ok = Compress-Archive -Path ($tmpZipDest + "\*") -DestinationPath $this.ZipFilesPaths[0] -CompressionLevel "Optimal" -Force
-        $ok | Write-Host
-        return $null
+        $compressOutput = Compress-Archive -Path ($tmpZipDest + "\*") -DestinationPath $this.ZipFilesPaths[0]`
+            -CompressionLevel "Optimal" -Force
+        $compressOutput | Write-Host
     }
 }
 
