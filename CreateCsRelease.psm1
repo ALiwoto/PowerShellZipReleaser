@@ -16,16 +16,21 @@ class CsProjectContainer {
     # dotnet build command.
     [bool]$IsBuilt = $false
 
+    # The solution file's name that contained this cs-project originally.
+    [string]$SlnName
+
     # Coonstructor of the CsProjectContainer class.
     CsProjectContainer(
         [string]$Path,
         [string]$TheName,
         [string]$RawContent,
+        [string]$TheSlnName,
         [string]$ProjectUUID = $null
     ) {
         $this.ProjectName = $TheName
         $this.CsProjectFilePath = $Path
         $this.CsUUID = $ProjectUUID
+        $this.SlnName = $TheSlnName
         if ($RawContent) {
             $this.RawContent = $RawContent
         }
@@ -144,7 +149,13 @@ function ConvertFrom-SlnFile {
             $csInfos = $currentProjectStr | Split-StringValue -Separators @("=", ",") | ForEach-Object {
                 $_.Trim("`"")
             }
-            $allCsProjectContainers += [CsProjectContainer]::new($parentPath + $csInfos[2], $csInfos[1], $null, $csInfos[3])
+            $allCsProjectContainers += [CsProjectContainer]::new(
+                $parentPath + $csInfos[2],              # path
+                $csInfos[1],                            # project name
+                $null,                                  # the raw conent (which will be set later)
+                (Split-Path -Path ($SlnPath) -Leaf),    # the sln name
+                $csInfos[3]                             # UUID
+            )
         }
     
         return $allCsProjectContainers

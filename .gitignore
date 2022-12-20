@@ -353,5 +353,6 @@ MigrationBackup/
 config.json
 *.config.json
 
-# clones folder
+# clones and zips folder
 Clones/
+Zips/

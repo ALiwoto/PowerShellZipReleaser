@@ -9,7 +9,9 @@ using module ".\CreateCsRelease.psm1"
 # dot-source dependency files.
 . "./AdvancedUtils.ps1"
 
+$script:ZipReleaserTmpDir = "ZipReleaser-tmp-Dir"
 $ZipReleaserVersionString = "1.0.0"
+
 
 function Show-WrongValueEntered {
     [CmdletBinding()]
@@ -92,7 +94,7 @@ class ConfigElement {
     # points to the place where the repository will be located on our local machine.
     [string]$DestinationPath = $null
 
-
+    # the path in which we will be storing our zip file(s).
     [string]$ZipDestinationPath = $null
 
     # The target tag. The tag in which we will be working on to build and pack a zip file out of it.
@@ -137,6 +139,9 @@ class ConfigElement {
     # by default, in near future, we are planning to add support to modify the value of this
     # property by users.
     [bool]$ModifyProjectVersion = $true
+
+    [int]$FailedBuilts = 0
+    [int]$SucceededBuilts = 0
 
     ConfigElement() {
         # no params here, properties will keep their default values
@@ -421,7 +426,7 @@ class ConfigElement {
         }
     }
 
-    [CsProjectContainer]GetCsProjectByName([string]$TheName) {
+    [object]GetCsProjectByName([string]$TheName) {
         foreach ($currentProject in $this.CsProjectContainers) {
             if ($currentProject.ProjectName -eq $TheName) {
                 return $currentProject
@@ -458,9 +463,60 @@ class ConfigElement {
         Set-Location $originalPWDPath
     }
 
+    [void]SetZipZipDestinationPath() {
+        if (-not [string]::IsNullOrEmpty($this.ZipDestinationPath)) {
+            if ($this.UseConfigForAll) {
+                # all is good
+                return
+            }
+
+            # the value is set, but should be displayed for the user
+            # to confirm.
+            $this.ZipDestinationPath = ("destination path to store the zip file(s) (default: " +
+                "$($this.ZipDestinationPath))") | Read-DirPathFromHost -ValueDefault $this.ZipDestinationPath
+            return
+        }
+
+        $this.ZipDestinationPath = ("destination path to store the zip file(s)" | Read-DirPathFromHost)
+        if ($this.ZipDestinationPath -is [string]) {
+            $this.ZipDestinationPath = $this.ZipDestinationPath.Trim()
+        }
+
+        $tmpZippingPath = $this.GetTempZipDestinationPath()
+        if ([System.IO.Directory]::Exists($this.GetTempZipDestinationPath())) {
+            Remove-Item -Path $this.GetTempZipDestinationPath() -Recurse -Force -WarningAction "SilentlyContinue"
+        }
+
+        New-Item -Path $tmpZippingPath -ItemType "Directory"
+    }
+
+    [string]GetTempZipDestinationPath() {
+        return $script:ZipReleaserTmpDir + "ZipReleaser-tmp-folder$global:PID"
+    }
+
     [string[]]ZipProjects() {
+        $tmpZipDest = $this.GetTempZipDestinationPath()
+        New-Item -Path ($tmpZipDest) -ItemType "Directory"
+        foreach ($currentCsProject in $this.CsProjectContainers) {
+            if (-not $currentCsProject.IsBuilt) {
+                $this.FailedBuilts++
+                continue
+            }
 
+            $this.SucceededBuilts++
+            $myBin = $currentCsProject.GetBinFolderPath()
+            (Copy-Item -Path $myBin -Destination $tmpZipDest -Force -Recurse)
+            # $ok | Write-Host
+        }
 
+        $zipRawName = $this.CsProjectContainers[0].SlnName.Substring(0, $this.CsProjectContainers[0].SlnName.Length - 4) 
+        $pathToSave = $global:PWD.ToString() + [System.IO.Path]::DirectorySeparatorChar + 
+        $script:ZipReleaserTmpDir + [System.IO.Path]::DirectorySeparatorChar
+        New-Item -Path $pathToSave -ItemType "Directory" -Force -ErrorAction "SilentlyContinue"
+
+        $this.ZipFilesPaths += $pathToSave + "$zipRawName-$($this.TargetTag).zip"
+        $ok = Compress-Archive -Path ($tmpZipDest + "\bin") -DestinationPath $this.ZipFilesPaths[0] -CompressionLevel "Optimal" -Force
+        $ok | Write-Host
         return $null
     }
 }
@@ -570,7 +626,18 @@ function Start-MainOperation {
     $currentConfig.SetTargetTag()
     $currentConfig.DiscoverProjects()
     $currentConfig.BuildProjects()
+    $currentConfig.SetZipZipDestinationPath()
     $currentConfig.ZipProjects()
+
+    Set-Location $currentConfig.OriginalPWD
+
+    $finalFileNames = @()
+
+    foreach ($currentZipFilePath in $currentConfig.ZipFilesPaths) {
+        $finalFileNames += ($currentConfig.ZipDestinationPath +
+            (Split-Path -Path $currentZipFilePath -Leaf))
+        Move-Item -Path $currentZipFilePath -Destination $currentConfig.ZipDestinationPath -Force -ErrorAction "SilentlyContinue"
+    }
 
     if ($this.$ZipFilesPaths.Count -gt 1) {
         "List of Zip files: " | Write-Host
@@ -581,13 +648,22 @@ function Start-MainOperation {
         "-> $($this.$ZipFilesPaths)" | Write-Host -ForegroundColor "Green"
     }
 
-    "[*] Total Projects built: $($currentConfig.CsProjectContainers.Count)`n" +
-    "[*] Total Solutions built: $($currentConfig.SlnFilesPaths.Count)`n" +
+    "[*] Total Projects built: $($currentConfig.SucceededBuilts) " +
+    " / Failed builts: $($currentConfig.FailedBuilts)" +
+    "[*] Total Solutions to build: $($currentConfig.SlnFilesPaths.Count)`n" +
     "[*] Total zip files: $($this.$ZipFilesPaths.Count)" | Write-Host
     
-    "Done!" | Write-Host
-    Set-Location $currentConfig.OriginalPWD
+    $sshPathToSave = "ssh path to upload the zip artifact" | Read-ValueFromHost
+    if (-not $sshPathToSave -or $sshPathToSave.Length -eq 0) {
+        return $true
+    }
 
+    foreach ($currentFinalFile in $finalFileNames) {
+        $scpResult = (scp $currentFinalFile $sshPathToSave 2>&1)
+        $scpResult | Write-Host
+    }
+
+    "Done!" | Write-Host
     return $true
 }
 
