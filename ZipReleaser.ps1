@@ -385,7 +385,7 @@ class ConfigElement {
             foreach ($currentCsProj in $currentCsProjs) {
                 $this.CsProjectContainers += $currentCsProj
                 "   Found " | Write-Host -NoNewline
-                "$($currentCsProj.ProjectName)" | Write-Host -ForegroundColor "Green"
+                "$($currentCsProj.ProjectName)" | Write-Host -ForegroundColor "Green" -NoNewline
                 ": $($currentCsProj.CsProjectFilePath)" | Write-Host
             }
 
