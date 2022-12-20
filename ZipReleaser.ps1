@@ -253,14 +253,24 @@ class ConfigElement {
         return $this.AllRepoTags
     }
 
+    [bool]HasAnyTags() {
+        return ($null -ne $this.AllRepoTags -and $this.AllRepoTags.Count -gt 0)
+    }
+
     [void]SetTargetTag() {
         $defaultValuePrompt = $null
+        # make sure the repo tags are cached.
+        $this.GetAllRepoTags()
+        if (-not $this.HasAnyTags) {
+            throw "The repository does not contain any tags."
+        }
+
         if (-not [string]::IsNullOrEmpty($this.TargetTag)) {
             if ($this.UseConfigForAll) {
                 if ($this.TargetTag -eq "latest") {
                     # make sure to get the latest tag and set it here, if
                     # user has "latest" value set in their config file.
-                    $this.TargetTag = Get-LatestGitTag
+                    $this.TargetTag = $this.AllRepoTags[-1]
                     "Target tag has been sent to $($this.TargetTag)!" | Write-Host
                     return
                 }
@@ -272,12 +282,11 @@ class ConfigElement {
             $defaultValuePrompt = "use config value ($($this.TargetTag))"
         }
         else {
-            $this.TargetTag = Get-LatestGitTag
+            $this.TargetTag = $this.AllRepoTags[-1]
             $defaultValuePrompt = "use the latest tag"
         }
 
-        # make sure the repo tags are cached.
-        $this.GetAllRepoTags()
+        
 
         $tagsListStr = "Here is a list of tags for this repository:`n"
         for ($i = 0; $i -lt $this.AllRepoTags.Count; $i++) {

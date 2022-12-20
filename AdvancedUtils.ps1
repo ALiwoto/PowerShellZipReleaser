@@ -91,28 +91,18 @@ function Get-LatestGitTag {
     )
     
     process {
-        $gitOutput = (git describe --tags --abbrev=0 2>&1)
-        if ($gitOutput -is [string]) {
-            return $gitOutput.Trim()
-        } elseif ($gitOutput -is [string[]]) {
-            foreach ($currentOutput in $gitOutput) {
-                $currentOutput = ($currentOutput -as [string]).Trim()
-                if ($currentOutput.StartsWith("v")) {
-                    return $currentOutput
-                }
-            }
-        } elseif ($null -eq $gitOutput) {
-            "Unexpected `$null result received from git command.`n" +
-            "Are you sure you have git client installed on this machine?" | Write-Error
-            return $null
-        } elseif ($gitOutput -is [System.Management.Automation.ErrorRecord]) {
-            $gitOutput | Write-Error
-            return $null
-        }
-
-        "Unexpected result of type $($gitOutput.GetType().FullName) received from " +
-        "git command." | Write-Error
-        return $null
+        # previously, logic for this function was to invoke "git describe --tags --abbrev=0"
+        # command; but later on, we found out that this command will have a common bug:
+        # v1.1.09 will be considered as the latest tag while v1.1.10 exists in the list of
+        # all tags.
+        # So what we did, was to just replace it with this simple solution.
+        # but since this solution is kinda expensive (receiving a list of ALL tags and then returning
+        # the last index of them EACH TIME), it's adviced not to use this function anymore,
+        # instead it's better for caller to call Get-AllGitTags cmdlet directly and cache
+        # all of the tags in the memory, and then use the latest index of that array to get the
+        # latest tag of the repository. (but if this operation is one-time, and it doesn't need repeating
+        # at all, then using this cmdlet is ideal, since it reduces code).
+        return (Get-AllGitTags)[-1]
     }
 }
 
