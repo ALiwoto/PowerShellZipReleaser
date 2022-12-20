@@ -306,12 +306,13 @@ class ConfigElement {
                 "Please re-confirm the existence of the tag." | Write-Host
                 continue
             }
+
+            break
         }
 
         # $this.SwitchToTag method has already changed the value
         # of $this.TargetTag, there is no need to change it again here.
         "Target tag has been set to $($this.TargetTag)!" | Write-Host
-        break
     }
 
     [void]DiscoverProjects() {
