@@ -119,7 +119,15 @@ class ConfigElement {
     # memory. It is NOT supplie by the user.
     [string[]]$AllRepoTags = $null
 
+    # Containers of all of cs-projects that we are going to build/modify.
+    # Type of each element of this array SHOULD be CsProjectContainer class.
     [System.Object[]]$CsProjectContainers
+
+    # Set to $true if and only if we have to modify the version defined in
+    # project config file of each of our projects. This property is set to $true
+    # by default, in near future, we are planning to add support to modify the value of this
+    # property by users.
+    [bool]$ModifyProjectVersion = $true
 
     ConfigElement() {
         # no params here, properties will keep their default values
@@ -387,6 +395,10 @@ class ConfigElement {
                 "   Found " | Write-Host -NoNewline
                 "$($currentCsProj.ProjectName)" | Write-Host -ForegroundColor "Green" -NoNewline
                 ": $($currentCsProj.CsProjectFilePath)" | Write-Host
+
+                if ($this.ModifyProjectVersion) {
+                    $currentCsProj.ModifyProjectVersion($this.TargetTag)
+                }
             }
 
             "`n" | Write-Host
