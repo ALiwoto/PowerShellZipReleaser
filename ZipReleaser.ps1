@@ -3,21 +3,13 @@
 # This file is subject to the terms and conditions defined in
 # file 'LICENSE', which is part of the source code.
 
+# script modules
 using module ".\CreateCsRelease.psm1"
 
-
-# This line here is only for testing-purposes, please do not panic :)
-# It will be removed once we shift the content of this file to a stable script file,
-# till then, this script file will remain as a testing script file.
-$ok = ConvertFrom-SlnFile -SlnPath "E:\abedini\projects\GUISharp\GUISharp.sln"
-
-$ok | Write-Host
-
+# dot-source dependency files.
+. "./AdvancedUtils.ps1"
 
 $ZipReleaserVersionString = "1.0.0"
-
-# dot-source advanced-utils file.
-. "./AdvancedUtils.ps1"
 
 function Show-WrongValueEntered {
     [CmdletBinding()]
@@ -415,7 +407,7 @@ function Read-JsonConfig {
     )
 
     process {
-        if (-not (Test-Path -Path $Path)) {
+        if (-not ([System.IO.File]::Exists($Path))) {
             return $null
         }
     
@@ -455,7 +447,7 @@ function Start-MainOperation {
         elseif ($null -ne $projectConfigContainer -and $projectConfigContainer.Contains($userInput)) {
             $currentConfig = $projectConfigContainer.GetConfig($userInput)
         }
-        elseif (Test-Path ("$userInput.config.json")) {
+        elseif ([System.IO.File]::Exists("$userInput.config.json")) {
             $projectConfigContainer = Read-JsonConfig -Path "$userInput.config.json"
             $currentConfig = $projectConfigContainer.GetConfig($userInput)
             if ($null -eq $currentConfig) {
