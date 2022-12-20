@@ -146,19 +146,26 @@ class ConfigElement {
     # count of succeeded builds/compilations.
     [int]$SucceededBuilts = 0
 
+    # Creates a new instance of COnfigElement class and tries to
+    # assign all of the variables via 
     ConfigElement() {
-        # no params here, properties will keep their default values
+        $this.GitUpstreamUri = $Env:GIT_UPSTREAM_URI -as [string]
+        $this.DestinationPath = $Env:DESTINATION_PATH -as [string]
+        $this.TargetBranch = $Env:TARGET_BRANCH -as [string]
+        $this.TargetTag = $Env:TARGET_TAG -as [string]
+        $this.PackSeparatedPackages = $Env:PACK_SEPARATED_PACKAGE -as [bool]
+        $this.ModifyProjectVersion = $Env:MODIFY_PROJECT_VERSION -as [bool]
     }
 
     # Creates a new instance of ConfigElement class.
     # Please do notice that the passed-argument MUST be an instance of [hashtable] type.
     ConfigElement([hashtable]$ParsedValue) {
-        $this.GitUpstreamUri = $ParsedValue["upstream_url"]
-        $this.DestinationPath = $ParsedValue["destination_path"]
-        $this.TargetBranch = $ParsedValue["target_branch"]
-        $this.TargetTag = $ParsedValue["target_tag"]
-        $this.PackSeparatedPackages = $ParsedValue["pack_separated_packages"]
-        $this.ModifyProjectVersion = $ParsedValue["modify_project_version"]
+        $this.GitUpstreamUri = $ParsedValue["upstream_url"] -as [string]
+        $this.DestinationPath = $ParsedValue["destination_path"] -as [string]
+        $this.TargetBranch = $ParsedValue["target_branch"] -as [string]
+        $this.TargetTag = $ParsedValue["target_tag"] -as [string]
+        $this.PackSeparatedPackages = $ParsedValue["pack_separated_packages"] -as [bool]
+        $this.ModifyProjectVersion = $ParsedValue["modify_project_version"] -as [bool]
     }
 
     [void]SetDestinationPath() {
