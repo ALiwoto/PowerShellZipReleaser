@@ -384,6 +384,7 @@ class ConfigElement {
 
         foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
             $currentSlnPath = $currentSlnFile.PSPath | Get-NormalizedPSPath
+            $this.SlnFilesPaths += $currentSlnPath
             $currentCsProjs = $currentSlnPath | ConvertFrom-SlnFile
 
             "Discovered Solution File: " | Write-Host -NoNewline -ForegroundColor "Green"
