@@ -5,6 +5,15 @@
 
 using module ".\CreateCsRelease.psm1"
 
+
+# This line here is only for testing-purposes, please do not panic :)
+# It will be removed once we shift the content of this file to a stable script file,
+# till then, this script file will remain as a testing script file.
+$ok = ConvertFrom-SlnFile -SlnPath "E:\abedini\projects\GUISharp\GUISharp.sln"
+
+$ok | Write-Host
+
+
 $ZipReleaserVersionString = "1.0.0"
 
 # dot-source advanced-utils file.
@@ -371,7 +380,7 @@ class ConfigElement {
         "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
 
         foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
-            
+
             "Discovered Solution File: " | Write-Host -NoNewline -ForegroundColor "Green"
             $currentSlnFile.PSPath | Get-NormalizedPSPath | Write-Host
         }
