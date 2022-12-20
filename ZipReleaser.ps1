@@ -228,11 +228,32 @@ class ConfigElement {
     }
 
     [bool]SwitchToTag([string]$TagName) {
+        return $this.SwitchToTag($TagName, $true)
+    }
+
+    [bool]SwitchToTag([string]$TagName, [bool]$Confirm) {
         $this.GetAllRepoTags()
-        if ($this.AllRepoTags -contains $TagName) {
-            $this.TargetTag = $TagName
+        
+        if ($Confirm -and -not ($this.AllRepoTags -contains $TagName)) {
+            return $false
+        }
+        
+        $this.TargetTag = $TagName
+        $gitOutput = (git checkout tags/$TagName 2>&1)
+        if ($null -eq $gitOutput -or $gitOutput.Count -eq 0) {
+            return $false
+        }
+
+        $outputStr = $gitOutput[0].ToString()
+        if ($outputStr.Contains("switching to") -or $outputStr.Contains("HEAD is now at")) {
+            # two kind of outputs are expected here:
+            # 1- "Note: switching to 'tags/v1.1.10'."
+            # 2- "HEAD is now at 23973e8 Do some code refactor."
             return $true
         }
+
+        "Unexpected output from git checkout command while switching to " +
+        "tag $($this.TargetTag): $outputStr" | Write-Error
 
         return $false
     }
@@ -319,6 +340,7 @@ class ConfigElement {
             break
         }
 
+
         # $this.SwitchToTag method has already changed the value
         # of $this.TargetTag, there is no need to change it again here.
         "Target tag has been set to $($this.TargetTag)!" | Write-Host
@@ -327,7 +349,7 @@ class ConfigElement {
     [void]DiscoverProjects() {
         $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this"  +
         " repository to a single .zip file?`n" +
-        "(Y/N)" | Read-ValueFromHost).Trim() -ne "y"
+        "(Y/N)" | Read-Host).Trim() -ne "y"
     }
 }
 
