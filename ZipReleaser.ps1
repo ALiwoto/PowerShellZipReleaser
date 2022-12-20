@@ -92,6 +92,9 @@ class ConfigElement {
     # points to the place where the repository will be located on our local machine.
     [string]$DestinationPath = $null
 
+
+    [string]$ZipDestinationPath = $null
+
     # The target tag. The tag in which we will be working on to build and pack a zip file out of it.
     [string]$TargetTag = $null
 
@@ -121,6 +124,9 @@ class ConfigElement {
 
     # Paths of .sln files.
     [string[]]$SlnFilesPaths = $null
+
+    # Paths of generated final .zip files (can be 1, or more).
+    [string[]]$ZipFilesPaths = $null
 
     # Containers of all of cs-projects that we are going to build/modify.
     # Type of each element of this array SHOULD be CsProjectContainer class.
@@ -164,6 +170,12 @@ class ConfigElement {
             $this.DestinationPath = $this.DestinationPath.Trim()
         }
 
+        if ([System.IO.Directory]::Exists($this.DestinationPath)) {
+            "Removing items from $($this.DestinationPath) because there are already " +
+            "files in it" | Write-Host -ForegroundColor "Red"
+            Remove-Item -Path $this.DestinationPath -Recurse -Force -WarningAction "SilentlyContinue"
+        }
+
         "Cloning your repository to $($this.DestinationPath)" | Write-Host
     }
 
@@ -178,7 +190,7 @@ class ConfigElement {
     }
 
     [bool]SwitchToBranch([string]$BranchName) {
-        $gitOutputs = (git checkout $BranchName)
+        $gitOutputs = (git checkout $BranchName 2>&1)
         foreach ($currentGitOutput in $gitOutputs) {
             # $currentGitOutput here can be [System.Management.Automation.ErrorRecord] or
             # [string] types, so be better be using (-as [string]) for it.
@@ -408,6 +420,49 @@ class ConfigElement {
             "`n" | Write-Host
         }
     }
+
+    [CsProjectContainer]GetCsProjectByName([string]$TheName) {
+        foreach ($currentProject in $this.CsProjectContainers) {
+            if ($currentProject.ProjectName -eq $TheName) {
+                return $currentProject
+            }
+        }
+
+        return $null
+    }
+
+    [void]BuildProjects() {
+        $originalPWDPath = $PWD
+        foreach ($currentSlnPath in $this.SlnFilesPaths) {
+            $currentSlnParent = Split-Path -Path $currentSlnPath
+            Set-Location $currentSlnParent
+
+            $dotnetOutput = (dotnet build 2>&1)
+            if (-not $dotnetOutput -or $dotnetOutput.Count -eq 0) {
+                throw "Unexpected empty response received from dotnet build command"
+            }
+
+
+            foreach ($currentLine in $dotnetOutput) {
+                if (-not $currentLine.Contains(" -> ")) {
+                    # this isn't what we are looking for.
+                    continue
+                }
+
+                $tmpStrs = $currentLine.Split(" -> ", 2,"RemoveEmptyEntries")
+                $theProject = $this.GetCsProjectByName($tmpStrs[0])
+                $theProject.IsBuilt = $true
+            }
+        }
+        
+        Set-Location $originalPWDPath
+    }
+
+    [string[]]ZipProjects() {
+
+
+        return $null
+    }
 }
 
 class ConfigContainer {
@@ -514,7 +569,21 @@ function Start-MainOperation {
     $currentConfig.SetTargetBranch()
     $currentConfig.SetTargetTag()
     $currentConfig.DiscoverProjects()
+    $currentConfig.BuildProjects()
+    $currentConfig.ZipProjects()
 
+    if ($this.$ZipFilesPaths.Count -gt 1) {
+        "List of Zip files: " | Write-Host
+    } else {
+        "Final Zip file: "
+    }
+    foreach ($currentZipPath in $this.$ZipFilesPaths) {
+        "-> $($this.$ZipFilesPaths)" | Write-Host -ForegroundColor "Green"
+    }
+
+    "[*] Total Projects built: $($currentConfig.CsProjectContainers.Count)`n" +
+    "[*] Total Solutions built: $($currentConfig.SlnFilesPaths.Count)`n" +
+    "[*] Total zip files: $($this.$ZipFilesPaths.Count)" | Write-Host
     
     "Done!" | Write-Host
     Set-Location $currentConfig.OriginalPWD
