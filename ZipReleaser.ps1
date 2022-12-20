@@ -29,10 +29,17 @@ function Read-ValueFromHost {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [string]$ValueName,
         [Parameter(Mandatory = $false)]
-        [string]$ValueDefault = $null
+        [string]$ValueDefault = $null,
+        [Parameter(Mandatory = $false)]
+        [switch]$NoPlease
     )
     
-    $theInput = ([string](Read-Host -Prompt "Please enter the $ValueName")).Trim()
+    $thePrompt = "Please enter the $ValueName"
+    if ($NoPlease.ToBool()) {
+        # there will be no please prompting anymore.
+        $thePrompt = $ValueName
+    }
+    $theInput = ([string](Read-Host -Prompt $thePrompt)).Trim()
     if ([string]::IsNullOrEmpty($theInput)) {
         return $ValueDefault
     }
@@ -291,11 +298,17 @@ class ConfigElement {
                 if ($this.TargetTag -eq "latest") {
                     # make sure to get the latest tag and set it here, if
                     # user has "latest" value set in their config file.
-                    $this.TargetTag = $this.AllRepoTags[-1]
+                    $this.SwitchToTag($this.AllRepoTags[-1])
                     "Target tag has been sent to $($this.TargetTag)!" | Write-Host
                     return
                 }
                 
+                if (-not ($this.SwitchToTag($this.TargetTag))) {
+                    throw "Invalid tag name has provided (or there were " +
+                    "some other issues when switching).`n"+
+                    "Please re-confirm the existence of the tag."
+                }
+
                 # All is good, we don't need to prompt user for getting input string.
                 return
             }
@@ -321,6 +334,12 @@ class ConfigElement {
             "string to $defaultValuePrompt)" | Read-ValueFromHost
 
             if ([string]::IsNullOrEmpty($tagNameToSwitch)) {
+                if (-not ($this.SwitchToTag($this.TargetTag))) {
+                    "Invalid tag name has provided (or there were " +
+                    "some other issues when switching).`n"+
+                    "Please re-confirm the existence of the tag." | Write-Host
+                    continue
+                }
                 # we will stay on the default-provided tag.
                 break
             }
@@ -349,7 +368,9 @@ class ConfigElement {
     [void]DiscoverProjects() {
         $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this"  +
         " repository to a single .zip file?`n" +
-        "(Y/N)" | Read-Host).Trim() -ne "y"
+        "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
+
+        
     }
 }
 
