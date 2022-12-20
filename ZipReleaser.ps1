@@ -119,9 +119,12 @@ class ConfigElement {
     # memory. It is NOT supplie by the user.
     [string[]]$AllRepoTags = $null
 
+    # Paths of .sln files.
+    [string[]]$SlnFilesPaths = $null
+
     # Containers of all of cs-projects that we are going to build/modify.
     # Type of each element of this array SHOULD be CsProjectContainer class.
-    [System.Object[]]$CsProjectContainers
+    [System.Object[]]$CsProjectContainers = $null
 
     # Set to $true if and only if we have to modify the version defined in
     # project config file of each of our projects. This property is set to $true
