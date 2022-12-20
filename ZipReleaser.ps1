@@ -140,7 +140,10 @@ class ConfigElement {
     # property by users.
     [bool]$ModifyProjectVersion = $true
 
+    # count of failed builds/compilations.
     [int]$FailedBuilts = 0
+
+    # count of succeeded builds/compilations.
     [int]$SucceededBuilts = 0
 
     ConfigElement() {
@@ -154,6 +157,8 @@ class ConfigElement {
         $this.DestinationPath = $ParsedValue["destination_path"]
         $this.TargetBranch = $ParsedValue["target_branch"]
         $this.TargetTag = $ParsedValue["target_tag"]
+        $this.PackSeparatedPackages = $ParsedValue["pack_separated_packages"]
+        $this.ModifyProjectVersion = $ParsedValue["modify_project_version"]
     }
 
     [void]SetDestinationPath() {
@@ -650,8 +655,8 @@ function Start-MainOperation {
 
     "[*] Total Projects built: $($currentConfig.SucceededBuilts) " +
     " / Failed builts: $($currentConfig.FailedBuilts)" +
-    "[*] Total Solutions to build: $($currentConfig.SlnFilesPaths.Count)`n" +
-    "[*] Total zip files: $($this.$ZipFilesPaths.Count)" | Write-Host
+    "`n[*] Total Solutions built: $($currentConfig.SlnFilesPaths.Count)" +
+    "`n[*] Total zip files: $($this.$ZipFilesPaths.Count)" | Write-Host
     
     $sshPathToSave = "ssh path to upload the zip artifact" | Read-ValueFromHost
     if (-not $sshPathToSave -or $sshPathToSave.Length -eq 0) {
