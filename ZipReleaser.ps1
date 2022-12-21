@@ -13,7 +13,8 @@ $script:ZipReleaserTmpDir = "ZipReleaser-tmp-Dir"
 [bool]$script:ShouldDebug = ($args[0] -eq "-debug")
 $ZipReleaserVersionString = "1.0.0"
 
-
+# This cmdlet is used when the user has entered a wrong value in the console.
+# it will print a message saying "you have provided wrong value for x param".
 function Show-WrongValueEntered {
     [CmdletBinding()]
     param (
@@ -27,6 +28,9 @@ function Show-WrongValueEntered {
     }
 }
 
+# This cmdlet reads a value from the console host. It will verify that the value is not
+# null or empty, if it is, it will return the ValueDefault parameter passed to it, otherwise
+# it will return the original user-input.
 function Read-ValueFromHost {
     [CmdletBinding()]
     param (
@@ -51,7 +55,8 @@ function Read-ValueFromHost {
     return $theInput
 }
 
-
+# This cmdlet tries to read an environment variable. If it fails, it will return
+# ValueDefault param as fallback, otherwise it will return the original content.
 function Get-EnvVariable {
     [CmdletBinding()]
     param (
@@ -76,6 +81,10 @@ function Get-EnvVariable {
     }
 }
 
+# This cmdlet will verify a given path and return the verified version of the path.
+# for example, it will content "clones\ConsoleTest2" to "clones\ConsoleTest2\" so that
+# everywhere in the script, we do have trailing escape character for all of our path.
+# this cmdlet supports pipeline.
 function Get-VerifiedDirPath {
     [CmdletBinding()]
     param (
@@ -115,6 +124,7 @@ function Get-VerifiedDirPath {
     }
 }
 
+# Reads a dir path from the console host and returns the verified version (it calls Get-VerifiedDirPath cmdlet).
 function Read-DirPathFromHost {
     [CmdletBinding()]
     param (
@@ -134,6 +144,8 @@ function Read-DirPathFromHost {
     return ($thePath | Get-VerifiedDirPath)
 }
 
+# A class containing all of the configuration and variables needed for a cloned repo.
+# basically all of the useful variables are defined in this class (as a property).
 class ConfigElement {
     # If set to $true, will prevent the script from asking for user-input
     # each time, instead will just use the value specified in the config hashtable.
@@ -637,6 +649,9 @@ class ConfigElement {
     }
 }
 
+# A class containing all of the configurations class inside of it. We will need this
+# an instance of this class when and only when we are trying to parse the configurations from
+# an external source (other than console host), such as .json config files.
 class ConfigContainer {
     [hashtable]$AllConfigs
 
@@ -657,6 +672,10 @@ class ConfigContainer {
     }
 }
 
+# Reads the content of the specified json config file and returns the results
+# an object of ConfigContainer class.
+# Later on, for checking whether or not a config entry exists inside of this container,
+# you will have to call ConfigContainer.Contains([string]) method.
 function Read-JsonConfig {
     [CmdletBinding()]
     param (
@@ -679,6 +698,11 @@ function Read-JsonConfig {
     }
 }
 
+# Starts the main operation. (basically this is our main function, but it should be
+# wrapped around an infinite while loop, so the user can continue the operations without
+# having to re-open the application each time and repeat the process).
+# This function will return $true when and only when we have to continue that loop, otherwise
+# (if we have to exit the application), it will return $false.
 function Start-MainOperation {
     [ConfigContainer]$projectConfigContainer = Read-JsonConfig
     [string]$userInput = $null
