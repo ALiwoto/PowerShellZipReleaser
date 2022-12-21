@@ -63,8 +63,16 @@ function Invoke-CloneGitRepository {
         [Parameter(Mandatory = $true)]
         [string]$RepoUrl,
         [Parameter(Mandatory = $true)]
-        [string]$DestinationPath
+        [string]$DestinationPath,
+        [Parameter(Mandatory = $false)]
+        [bool]$ShouldDebug = $false
     )
+    if ($ShouldDebug) {
+        $gitOutput = (git clone $RepoUrl $DestinationPath --progress 2>&1)
+        "**DEBUG** Git output is : " | Write-Host -ForegroundColor "DarkBlue"
+        $gitOutput | Write-Host -ForegroundColor "DarkBlue" 
+        return $gitOutput
+    }
 
     return (git clone $RepoUrl $DestinationPath --progress 2>&1)
 }

@@ -10,6 +10,7 @@ using module ".\CreateCsRelease.psm1"
 . "./AdvancedUtils.ps1"
 
 $script:ZipReleaserTmpDir = "ZipReleaser-tmp-Dir"
+[bool]$script:ShouldDebug = ($args[0] -eq "-debug")
 $ZipReleaserVersionString = "1.0.0"
 
 
@@ -228,12 +229,32 @@ class ConfigElement {
     }
 
     [bool]CloneGitRepository() {
-        [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri -DestinationPath $this.DestinationPath)
+        [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri`
+            -DestinationPath $this.DestinationPath -ShouldDebug $script:ShouldDebug)
+        
         if ($null -ne $gitOutput -and $gitOutput.Length -ge 1) {
             $gitOutput[-1] | Write-Host
+        } elseif ($script:ShouldDebug) {
+            "**DEBUG** Unexpected output received from Invoke-CloneGitRepository command: " |`
+                Write-Host -ForegroundColor "DarkBlue"
+            
+            $gitOutput | Write-Host -ForegroundColor "DarkBlue"
         }
 
-        return ([System.IO.Directory]::Exists($this.DestinationPath + ".git"))
+        # the path of .git directory that we should be checking to see if git clone
+        # was successful or has failed. Do notice that it ends in ".git".
+        $dotGitRepoDir = $this.DestinationPath + ".git"
+        if ($script:ShouldDebug) {
+            $gitDirExists = ([System.IO.Directory]::Exists($dotGitRepoDir))
+            if ($gitDirExists) {
+                "**DEBUG**: Found Git repo dir at $dotGitRepoDir)" | Write-Host -ForegroundColor "DarkBlue"
+                return $true
+            }
+
+            "**DEBUG**: Could NOT find git repo dir at $dotGitRepoDir"
+        }
+
+        return ([System.IO.Directory]::Exists($dotGitRepoDir))
     }
 
     [bool]SwitchToBranch([string]$BranchName) {
