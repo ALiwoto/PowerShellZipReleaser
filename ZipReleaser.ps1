@@ -98,8 +98,10 @@ function Get-VerifiedDirPath {
         }
 
         if (-not ($ThePath[-1] -eq "/" -or $ThePath[-1] -eq "\")) {
-            "**DEBUG** Get-VerifiedDirPath: Adding trailing character `"\`" to `"$ThePath`" " +
-            "value provided by user." | Write-Host -ForegroundColor "DarkBlue"
+            if ($script:ShouldDebug) {
+                "**DEBUG** Get-VerifiedDirPath: Adding trailing character `"\`" to `"$ThePath`" " +
+                "value provided by user." | Write-Host -ForegroundColor "DarkBlue"
+            }
             $ThePath += [System.IO.Path]::DirectorySeparatorChar
         }
 
