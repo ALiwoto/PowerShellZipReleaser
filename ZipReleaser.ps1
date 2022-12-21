@@ -66,6 +66,11 @@ function Get-EnvVariable {
             return (Get-Content -Path "Env:\$ValueName" -ErrorAction "Suspend")
         }
         catch {
+            if ($script:ShouldDebug) {
+                "**DEBUG** Could NOT find $ValueName from Env:\; returning default value of " +
+                "$ValueDefault as fallback" | Write-Host -ForegroundColor "DarkBlue"
+            }
+            
             return $ValueDefault
         }
     }
@@ -211,6 +216,11 @@ class ConfigElement {
             # to confirm.
             $this.DestinationPath = ("destination path to clone the repo (default: " +
                 "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
+            
+            if ($script:ShouldDebug) {
+                "**DEBUG**: DestinationPath property has been set to $($this.DestinationPath)" |`
+                    Write-Host -ForegroundColor "DarkBlue"
+            }
             return
         }
 
@@ -223,6 +233,11 @@ class ConfigElement {
             "Removing items from $($this.DestinationPath) because there are already " +
             "files in it" | Write-Host -ForegroundColor "Red"
             Remove-Item -Path $this.DestinationPath -Recurse -Force -WarningAction "SilentlyContinue"
+        }
+
+        if ($script:ShouldDebug) {
+            "**DEBUG**: DestinationPath property has been set to $($this.DestinationPath)" |`
+                Write-Host -ForegroundColor "DarkBlue"
         }
 
         "Cloning your repository to $($this.DestinationPath)" | Write-Host
