@@ -111,8 +111,10 @@ function Read-DirPathFromHost {
         Start-Sleep -Milliseconds 1200
     }
 
-    "**DEBUG** Read-DirPathFromHost: returning user-input `"$thePath`" to " +
-        "the caller." | Write-Host -ForegroundColor "DarkBlue"
+    if ($script:ShouldDebug) {
+        "**DEBUG** Read-DirPathFromHost: returning user-input `"$thePath`" to " +
+            "the caller." | Write-Host -ForegroundColor "DarkBlue"
+    }
     return $thePath
 }
 
