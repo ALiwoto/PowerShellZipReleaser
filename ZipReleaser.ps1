@@ -76,6 +76,45 @@ function Get-EnvVariable {
     }
 }
 
+function Get-VerifiedDirPath {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$ThePath
+    )
+
+    process {
+        if (-not $ThePath) {
+            return $ThePath
+        }
+
+        if (-not ($ThePath[-1] -eq "/" -or $ThePath[-1] -eq "\")) {
+            "**DEBUG** Get-VerifiedDirPath: Adding trailing character `"\`" to `"$ThePath`" " +
+            "value provided by user." | Write-Host -ForegroundColor "DarkBlue"
+            $ThePath += [System.IO.Path]::DirectorySeparatorChar
+        }
+
+        if ($CreateIfNotExist -and (-not ([System.IO.Directory]::Exists($ThePath)))) {
+            [System.IO.Directory]::CreateDirectory($ThePath)
+            if ($script:ShouldDebug) {
+                "**DEBUG** Get-VerifiedDirPath: Creating dir `"$ThePath`" because it does NOT " +
+                "exist." | Write-Host -ForegroundColor "DarkBlue"
+            }
+
+            # looks like creating directory takes a bit time, and then git clone
+            # command will fail because of this.. looks like git clone command
+            # entirely runs at background, or something like that?
+            Start-Sleep -Milliseconds 1200
+        }
+
+        if ($script:ShouldDebug) {
+            "**DEBUG** Get-VerifiedDirPath: returning user-input `"$ThePath`" to " +
+            "the caller." | Write-Host -ForegroundColor "DarkBlue"
+        }
+        return $ThePath
+    }
+}
+
 function Read-DirPathFromHost {
     [CmdletBinding()]
     param (
@@ -92,30 +131,7 @@ function Read-DirPathFromHost {
         return $thePath
     }
 
-    if (-not ($thePath[-1] -eq "/" -or $thePath[-1] -eq "\")) {
-        "**DEBUG** Read-DirPathFromHost: Adding trailing character `"\`" to `"$thePath`" "+
-        "value provided by user." | Write-Host -ForegroundColor "DarkBlue"
-        $thePath += "\"
-    }
-
-    if ($CreateIfNotExist -and (-not ([System.IO.Directory]::Exists($thePath)))) {
-        [System.IO.Directory]::CreateDirectory($thePath)
-        if ($script:ShouldDebug) {
-            "**DEBUG** Read-DirPathFromHost: Creating dir `"$thePath`" because it does NOT " +
-            "exist." | Write-Host -ForegroundColor "DarkBlue"
-        }
-
-        # looks like creating directory takes a bit time, and then git clone
-        # command will fail because of this.. looks like git clone command
-        # entirely runs at background, or something like that?
-        Start-Sleep -Milliseconds 1200
-    }
-
-    if ($script:ShouldDebug) {
-        "**DEBUG** Read-DirPathFromHost: returning user-input `"$thePath`" to " +
-            "the caller." | Write-Host -ForegroundColor "DarkBlue"
-    }
-    return $thePath
+    return ($thePath | Get-VerifiedDirPath)
 }
 
 class ConfigElement {
@@ -197,8 +213,9 @@ class ConfigElement {
         $this.DestinationPath = ("DESTINATION_PATH" | Get-EnvVariable) -as [string]
         $this.TargetBranch = ("TARGET_BRANCH" | Get-EnvVariable) -as [string]
         $this.TargetTag = ("TARGET_TAG" | Get-EnvVariable) -as [string]
+        $this.ZipDestinationPath = ("ZIP_DESTINATION_PATH" | Get-EnvVariable) -as [string]
         $this.SSHTargetPath = ("SSH_TARGET_PATH" | Get-EnvVariable) -as [string]
-        $this.SSHIdentifyFilePath = ("SSH_IDENTIFYFILE_PATH" | Get-EnvVariable) -as [string]
+        $this.SSHIdentifyFilePath = ("SSH_IDENTIFY_FILE_PATH" | Get-EnvVariable) -as [string]
         $this.PackSeparatedPackages = ("PACK_SEPARATED_PACKAGE" | Get-EnvVariable) -as [bool]
         $this.ModifyProjectVersion = ("MODIFY_PROJECT_VERSION" | Get-EnvVariable -ValueDefault $true) -as [bool]
         $this.UseConfigForAll = ("USE_CONFIG_FOR_ALL" | Get-EnvVariable) -as [bool]
@@ -208,9 +225,12 @@ class ConfigElement {
     # Please do notice that the passed-argument MUST be an instance of [hashtable] type.
     ConfigElement([hashtable]$ParsedValue) {
         $this.GitUpstreamUri = $ParsedValue["upstream_url"] -as [string]
-        $this.DestinationPath = $ParsedValue["destination_path"] -as [string]
+        $this.DestinationPath = $ParsedValue["destination_path"] -as [string] | Get-VerifiedDirPath
         $this.TargetBranch = $ParsedValue["target_branch"] -as [string]
         $this.TargetTag = $ParsedValue["target_tag"] -as [string]
+        $this.ZipDestinationPath = $ParsedValue["zip_destination_path"] -as [string] | Get-VerifiedDirPath
+        $this.SSHTargetPath = $ParsedValue["ssh_target_path"] -as [string]
+        $this.SSHIdentifyFilePath = $ParsedValue["ssh_identify_file_path"] -as [string]
         $this.PackSeparatedPackages = $ParsedValue["pack_separated_packages"] -as [bool]
         $this.ModifyProjectVersion = $ParsedValue["modify_project_version"] -as [bool]
         $this.UseConfigForAll = $ParsedValue["use_config_for_all"]
@@ -256,11 +276,12 @@ class ConfigElement {
 
     [bool]CloneGitRepository() {
         [string[]]$gitOutput = (Invoke-CloneGitRepository -RepoUrl $this.GitUpstreamUri`
-            -DestinationPath $this.DestinationPath -ShouldDebug $script:ShouldDebug)
+                -DestinationPath $this.DestinationPath -ShouldDebug $script:ShouldDebug)
         
         if ($null -ne $gitOutput -and $gitOutput.Length -ge 1) {
             $gitOutput[-1] | Write-Host
-        } elseif ($script:ShouldDebug) {
+        }
+        elseif ($script:ShouldDebug) {
             "**DEBUG** Unexpected output received from Invoke-CloneGitRepository command: " |`
                 Write-Host -ForegroundColor "DarkBlue"
             
@@ -423,7 +444,7 @@ class ConfigElement {
                 
                 if (-not ($this.SwitchToTag($this.TargetTag))) {
                     throw "Invalid tag name has provided (or there were " +
-                    "some other issues when switching).`n"+
+                    "some other issues when switching).`n" +
                     "Please re-confirm the existence of the tag."
                 }
 
@@ -445,7 +466,7 @@ class ConfigElement {
             $tagsListStr += "$i- $($this.AllRepoTags[$i])`n"
         } 
         
-        $tagsListStr| Write-Host
+        $tagsListStr | Write-Host
         "The latest tag for this repository is `"$($this.TargetTag)`"" | Write-Host
         while ($true) {
             $tagNameToSwitch = "name of the target tag to switch to (or empty " +
@@ -454,7 +475,7 @@ class ConfigElement {
             if ([string]::IsNullOrEmpty($tagNameToSwitch)) {
                 if (-not ($this.SwitchToTag($this.TargetTag))) {
                     "Invalid tag name has provided (or there were " +
-                    "some other issues when switching).`n"+
+                    "some other issues when switching).`n" +
                     "Please re-confirm the existence of the tag." | Write-Host
                     continue
                 }
@@ -469,7 +490,7 @@ class ConfigElement {
 
             if (-not ($this.SwitchToTag($tagNameToSwitch))) {
                 "Invalid tag name has provided (or there were " +
-                "some other issues when switching).`n"+
+                "some other issues when switching).`n" +
                 "Please re-confirm the existence of the tag." | Write-Host
                 continue
             }
@@ -484,9 +505,9 @@ class ConfigElement {
     }
 
     [void]DiscoverProjects() {
-        $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this"  +
-        " repository to a single .zip file?`n" +
-        "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
+        $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this" +
+            " repository to a single .zip file?`n" +
+            "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
 
         foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
             $currentSlnPath = $currentSlnFile.PSPath | Get-NormalizedPSPath
@@ -543,7 +564,7 @@ class ConfigElement {
                     continue
                 }
 
-                $tmpStrs = $currentLine.Split(" -> ", 2,"RemoveEmptyEntries")
+                $tmpStrs = $currentLine.Split(" -> ", 2, "RemoveEmptyEntries")
                 $theProject = $this.GetCsProjectByName($tmpStrs[0].Trim())
                 $theProject.IsBuilt = $true
             }
@@ -736,7 +757,8 @@ function Start-MainOperation {
 
     if ($currentConfig.ZipFilesPaths.Count -gt 1) {
         "List of Zip files: " | Write-Host
-    } else {
+    }
+    else {
         "Final Zip file: " | Write-Host
     }
 
