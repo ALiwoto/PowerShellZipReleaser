@@ -50,6 +50,26 @@ function Read-ValueFromHost {
     return $theInput
 }
 
+
+function Get-EnvVariable {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [string]$ValueName,
+        [Parameter(Mandatory = $false)]
+        [object]$ValueDefault = $null
+    )
+    
+    process {
+        try {
+            return (Get-Content -Path "Env:\$ValueName" -ErrorAction "Suspend")
+        }
+        catch {
+            return $ValueDefault
+        }
+    }
+}
+
 function Read-DirPathFromHost {
     [CmdletBinding()]
     param (
@@ -156,15 +176,15 @@ class ConfigElement {
     # Creates a new instance of ConfigElement class and tries to
     # assign all of the variables via 
     ConfigElement() {
-        $this.GitUpstreamUri = $Env:GIT_UPSTREAM_URI -as [string]
-        $this.DestinationPath = $Env:DESTINATION_PATH -as [string]
-        $this.TargetBranch = $Env:TARGET_BRANCH -as [string]
-        $this.TargetTag = $Env:TARGET_TAG -as [string]
-        $this.SSHTargetPath = $Env:SSH_TARGET_PATH -as [string]
-        $this.SSHIdentifyFilePath = $Env:SSH_IDENTIFYFILE_PATH -as [string]
-        $this.PackSeparatedPackages = $Env:PACK_SEPARATED_PACKAGE -as [bool]
-        $this.ModifyProjectVersion = $Env:MODIFY_PROJECT_VERSION -as [bool]
-        $this.UseConfigForAll = $Env:USE_CONFIG_FOR_ALL -as [bool]
+        $this.GitUpstreamUri = ("GIT_UPSTREAM_URI" | Get-EnvVariable) -as [string]
+        $this.DestinationPath = ("DESTINATION_PATH" | Get-EnvVariable) -as [string]
+        $this.TargetBranch = ("TARGET_BRANCH" | Get-EnvVariable) -as [string]
+        $this.TargetTag = ("TARGET_TAG" | Get-EnvVariable) -as [string]
+        $this.SSHTargetPath = ("SSH_TARGET_PATH" | Get-EnvVariable) -as [string]
+        $this.SSHIdentifyFilePath = ("SSH_IDENTIFYFILE_PATH" | Get-EnvVariable) -as [string]
+        $this.PackSeparatedPackages = ("PACK_SEPARATED_PACKAGE" | Get-EnvVariable) -as [bool]
+        $this.ModifyProjectVersion = ("MODIFY_PROJECT_VERSION" | Get-EnvVariable -ValueDefault $true) -as [bool]
+        $this.UseConfigForAll = ("USE_CONFIG_FOR_ALL" | Get-EnvVariable) -as [bool]
     }
 
     # Creates a new instance of ConfigElement class.
@@ -518,7 +538,7 @@ class ConfigElement {
 
     [void]ZipProjects() {
         $tmpZipDest = $this.GetTempZipDestinationPath()
-        New-Item -Path ($tmpZipDest) -ItemType "Directory"
+        New-Item -Path ($tmpZipDest) -ItemType "Directory" -ErrorAction "SilentlyContinue"
         foreach ($currentCsProject in $this.CsProjectContainers) {
             if (-not $currentCsProject.IsBuilt) {
                 $this.FailedBuilts++
@@ -540,6 +560,12 @@ class ConfigElement {
         $compressOutput = Compress-Archive -Path ($tmpZipDest + "\*") -DestinationPath $this.ZipFilesPaths[0]`
             -CompressionLevel "Optimal" -Force
         $compressOutput | Write-Host
+    }
+
+    [void]RemoveTempZipFiles() {
+        foreach ($currentZipPath in $this.ZipFilesPaths) {
+            Remove-Item -Path (Split-Path -Path $currentZipPath) -Recurse -Force -ErrorAction "SilentlyContinue"
+        }
     }
 }
 
@@ -661,19 +687,23 @@ function Start-MainOperation {
         Move-Item -Path $currentZipFilePath -Destination $currentConfig.ZipDestinationPath -Force -ErrorAction "SilentlyContinue"
     }
 
-    if ($this.$ZipFilesPaths.Count -gt 1) {
+    if ($currentConfig.ZipFilesPaths.Count -gt 1) {
         "List of Zip files: " | Write-Host
     } else {
-        "Final Zip file: "
-    }
-    foreach ($currentZipPath in $this.$ZipFilesPaths) {
-        "-> $($this.$ZipFilesPaths)" | Write-Host -ForegroundColor "Green"
+        "Final Zip file: " | Write-Host
     }
 
-    "[*] Total Projects built: $($currentConfig.SucceededBuilts) " +
+    foreach ($currentZipPath in $finalFileNames) {
+        "-> $currentZipPath" | Write-Host -ForegroundColor "Green"
+    }
+
+    # be sure to remove temp zip files (alongside of their parent directory)
+    $currentConfig.RemoveTempZipFiles()
+
+    "`n[*] Total Projects built: $($currentConfig.SucceededBuilts) " +
     " / Failed builts: $($currentConfig.FailedBuilts)" +
     "`n[*] Total Solutions built: $($currentConfig.SlnFilesPaths.Count)" +
-    "`n[*] Total zip files: $($this.$ZipFilesPaths.Count)" | Write-Host
+    "`n[*] Total zip files: $($currentConfig.ZipFilesPaths.Count)" | Write-Host
     
     $sshPathToSave = "ssh path to upload the zip artifact" | Read-ValueFromHost
     if (-not $sshPathToSave -or $sshPathToSave.Length -eq 0) {
