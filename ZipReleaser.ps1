@@ -93,17 +93,26 @@ function Read-DirPathFromHost {
     }
 
     if (-not ($thePath[-1] -eq "/" -or $thePath[-1] -eq "\")) {
+        "**DEBUG** Read-DirPathFromHost: Adding trailing character `"\`" to `"$thePath`" "+
+        "value provided by user." | Write-Host -ForegroundColor "DarkBlue"
         $thePath += "\"
     }
 
-    if ((-not ([System.IO.Directory]::Exists($thePath)))) {
+    if ($CreateIfNotExist -and (-not ([System.IO.Directory]::Exists($thePath)))) {
         [System.IO.Directory]::CreateDirectory($thePath)
+        if ($script:ShouldDebug) {
+            "**DEBUG** Read-DirPathFromHost: Creating dir `"$thePath`" because it does NOT " +
+            "exist." | Write-Host -ForegroundColor "DarkBlue"
+        }
+
         # looks like creating directory takes a bit time, and then git clone
         # command will fail because of this.. looks like git clone command
         # entirely runs at background, or something like that?
         Start-Sleep -Milliseconds 1200
     }
 
+    "**DEBUG** Read-DirPathFromHost: returning user-input `"$thePath`" to " +
+        "the caller." | Write-Host -ForegroundColor "DarkBlue"
     return $thePath
 }
 
