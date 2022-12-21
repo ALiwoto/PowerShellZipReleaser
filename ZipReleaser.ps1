@@ -79,7 +79,7 @@ function Get-EnvVariable {
 function Get-VerifiedDirPath {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [string]$ThePath
     )
 
@@ -438,7 +438,7 @@ class ConfigElement {
                     # make sure to get the latest tag and set it here, if
                     # user has "latest" value set in their config file.
                     $this.SwitchToTag($this.AllRepoTags[-1])
-                    "Target tag has been sent to $($this.TargetTag)!" | Write-Host
+                    "Target tag has been set to $($this.TargetTag)!" | Write-Host
                     return
                 }
                 
