@@ -252,19 +252,23 @@ class ConfigElement {
 
     [void]SetDestinationPath() {
         if (-not [string]::IsNullOrEmpty($this.DestinationPath)) {
-            if ($this.UseConfigForAll) {
-                # all is good
-                return
+            if (-not $this.UseConfigForAll) {
+                # the value is set, but should be displayed for the user
+                # to confirm.
+                $this.DestinationPath = ("destination path to clone the repo (default: " +
+                    "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
             }
 
-            # the value is set, but should be displayed for the user
-            # to confirm.
-            $this.DestinationPath = ("destination path to clone the repo (default: " +
-                "$($this.DestinationPath))") | Read-DirPathFromHost -ValueDefault $this.DestinationPath
             
             if ($script:ShouldDebug) {
                 "**DEBUG**: DestinationPath property has been set to $($this.DestinationPath)" |`
                     Write-Host -ForegroundColor "DarkBlue"
+            }
+
+            if ([System.IO.Directory]::Exists($this.DestinationPath + ".git")) {
+                "Removing items from $($this.DestinationPath) because there are already " +
+                "files in it" | Write-Host -ForegroundColor "Red"
+                Remove-Item -Path $this.DestinationPath -Recurse -Force -WarningAction "SilentlyContinue"
             }
             return
         }
@@ -519,9 +523,11 @@ class ConfigElement {
     }
 
     [void]DiscoverProjects() {
-        $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this" +
-            " repository to a single .zip file?`n" +
-            "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
+        if (-not $this.PackSeparatedPackages -and -not $this.UseConfigForAll) {
+            $this.PackSeparatedPackages = ("Would you like to pack all of the projects in this" +
+                " repository to a single .zip file?`n" +
+                "(Y/N)" | Read-ValueFromHost -NoPlease).Trim() -ne "y"
+        }
 
         foreach ($currentSlnFile in Get-ChildItem ".\" -Filter "*.sln" -Recurse) {
             $currentSlnPath = $currentSlnFile.PSPath | Get-NormalizedPSPath
