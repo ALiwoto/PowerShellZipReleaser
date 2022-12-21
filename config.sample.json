@@ -6,6 +6,17 @@
             "destination_path": ".\\Clones\\mtproto1",
             "target_branch": "default",
             "target_tag": "latest"
+        },
+        {
+            "name": "ConsoleTest2",
+            "upstream_url": "https://github.com/RudoRonuma/ConsoleTest2",
+            "destination_path": ".\\Clones\\ConsoleTest2",
+            "zip_destination_path": "zips\\",
+            "target_branch": "default",
+            "target_tag": "latest",
+            "pack_separated_packages": false,
+            "modify_project_version": true,
+            "use_config_for_all": true
         }
     ]
 }
