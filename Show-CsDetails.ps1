@@ -4,7 +4,11 @@ param (
     [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
     [string]$Path,
     [Parameter(Mandatory = $false)]
-    [switch]$Short
+    [switch]$Short,
+    [Parameter(Mandatory = $false)]
+    [string]$VersionFilter,
+    [Parameter(Mandatory = $false)]
+    [string]$FrameworkVersionFilter
 )
 
 $csProjFiles = (((Get-ChildItem -Recurse -Path $Path).FullName | 
@@ -13,7 +17,11 @@ $csProjFiles = (((Get-ChildItem -Recurse -Path $Path).FullName |
         }))
 
 $csCustomObjects = $csProjFiles | ForEach-Object { 
-    @{ "Path" = "$_"; "Content" = (Get-Content -Path $_) }
+    @{ 
+        "Path" = "$_"; 
+        "Content" = (Get-Content -Path $_);
+        "Deleted" = $false
+    }
 }
 
 
@@ -36,12 +44,27 @@ foreach ($currentObject in $csCustomObjects) {
                 $myStrs = @($myStrs)
             }
 
-            if (($myStrs[0] -as [string]).Contains("AssemblyInfo")) {
+            $firstValue = $myStrs[0] -as [string]
+            if ($firstValue.Contains("AssemblyInfo")) {
                 $currentObject["HasAssemblyInfo"] = $true
             }
 
             # not what we are expecting
             continue
+        }
+
+        if ($myStrs[0].Contains("ProductVersion") -and $VersionFilter) {
+            if ($myStrs[1] -notlike $VersionFilter) {
+                $currentObject["Deleted"] = $true
+                break
+            }
+        }
+
+        if ($myStrs[0].Contains("TargetFramework") -and $FrameworkVersionFilter) {
+            if ($myStrs[1] -notlike $FrameworkVersionFilter) {
+                $currentObject["Deleted"] = $true
+                break
+            }
         }
 
         $currentObject["$($myStrs[0])Line"] = $currentLine
@@ -52,6 +75,10 @@ foreach ($currentObject in $csCustomObjects) {
 "Found $($csCustomObjects.Count) projects in the specified path." | Write-Host
 $currentIndex = 1
 $csCustomObjects | ForEach-Object {
+    if ($_["Deleted"]) {
+        return
+    }
+
     "$currentIndex- " | Write-Host -NoNewline
     if ($Short) {
         "$(Split-Path -Path $_["Path"] -Leaf): " | Write-Host -NoNewline -ForegroundColor Green
