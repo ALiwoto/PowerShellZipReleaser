@@ -1,35 +1,4 @@
-# NOTICE: Running this script file alone will not do anything.
-# This file should be imported in ZipReleaser script file and
-# the utilities provided here should be used there.
-# Please run the ZipReleaser.ps1 script file instead.
-# Need more information? Please visit https://github.com/aliwoto/PowerShellZipReleaser
 
-
-# Splits the given string value with the given separators and
-# removes the empty entries.
-function Split-StringValue {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true, ValueFromPipeline)]
-        [string]$InputObject,
-        [string[]]$Separators = " "
-    )
-    
-    
-    process {
-        return $InputObject.Split($Separators, 
-            [System.StringSplitOptions]::RemoveEmptyEntries) |
-        ForEach-Object {
-            if ([string]::IsNullOrWhiteSpace($_)) {
-                return $null
-            }
-
-            return $_.Trim()
-        } | Where-Object { $null -ne $_ }
-    }
-}
-
-# A class containing information about a C# project (using its .csproj file).
 class CsProjectContainer {
     # The project name. Can be found in .sln file.
     [string]$ProjectName
@@ -103,7 +72,7 @@ class CsProjectContainer {
 
     [void]ModifyAttribute([string]$tmpRawContent, [string[]]$AttributeNames, [string]$AttributeValue) {
         # First case scenario: <Version> </Version> exists
-        if ($tmpRawContent.Contains($AttributeNames[0].ToLower()) -and $tmpRawContent.Contains($AttributeNames[1].ToLower())) {
+        if ($tmpRawContent.Contains($AttributeNames.ToLower()) -and $tmpRawContent.Contains($AttributeNames[1].ToLower())) {
             $allStrs = $this.RawContent.Split($AttributeNames, 3, "RemoveEmptyEntries")
             $allStrs[1] = "$($AttributeNames[0])$AttributeValue$($AttributeNames[1])"
 
@@ -124,6 +93,28 @@ class CsProjectContainer {
     }
 }
 
+function Split-StringValue {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline)]
+        [string]$InputObject,
+        [string[]]$Separators = " "
+    )
+    
+    
+    process {
+        return $InputObject.Split($Separators, 
+            [System.StringSplitOptions]::RemoveEmptyEntries) |
+        ForEach-Object {
+            if ([string]::IsNullOrWhiteSpace($_)) {
+                return $null
+            }
+
+            return $_.Trim()
+        } | Where-Object { $null -ne $_ }
+    }
+}
+
 # This function tries to parse the contents inside of a .sln file (visual studio solution file)
 # and returns an array of CsProjectContainer class instances.
 function ConvertFrom-SlnFile {
@@ -136,11 +127,6 @@ function ConvertFrom-SlnFile {
     process {
         [string]$allContent = Get-Content -Path $SlnPath -Raw
         [string]$parentPath = (Split-Path -Path $SlnPath) + [System.IO.Path]::DirectorySeparatorChar
-        if ($parentPath -eq [System.IO.Path]::DirectorySeparatorChar) {
-            # this is in the case Split-Path cmdlet returns an empty string.
-            # should prevent from logical error of \FILE_NAME from happening.
-            $parentPath = ".$([System.IO.Path]::DirectorySeparatorChar)"
-        }
     
         # parsed value will be something like this:
         # "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GUISharp", "GUISharp\GUISharp.csproj", "{6CB5C21A-EB16-48D6-B98A-F18D7CE46785}"
@@ -176,38 +162,3 @@ function ConvertFrom-SlnFile {
     }
 }
 
-# This function tries to find and edit the version of all of the
-# .csproj file in cthe target path.
-# It will return an array of strings, representing the parent path
-# to every .csproj file.
-function Edit-ProjectsVersion {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [string]$VersionValue,
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-    
-    process {
-        [CsProjectContainer[]]$allProjects = $()
-        foreach ($currentSlnFile in Get-ChildItem -Path $Path -Filter "*.sln" -Recurse) {
-            $allProjects += $currentSlnFile | ConvertFrom-SlnFile
-        }
-
-        [string[]]$allPaths = $()
-        foreach ($currentCsProject in $allProjects) {
-            $currentCsProject.ModifyProjectVersion($VersionValue)
-            $theParentPath = Split-Path $currentCsProject.CsProjectFilePath -Parent
-            if ([string]::IsNullOrEmpty($theParentPath)) {
-                $theParentPath = ".$([System.IO.Path]::DirectorySeparatorChar)"
-            } elseif ($theParentPath[-1] -ne [System.IO.Path]::DirectorySeparatorChar) {
-                $theParentPath += [System.IO.Path]::DirectorySeparatorChar
-            }
-
-            $allPaths += "$($currentCsProject.ProjectName);$($theParentPath -as [string])"
-        }
-
-        return $allPaths
-    }
-}
