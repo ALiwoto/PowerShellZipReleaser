@@ -25,12 +25,21 @@ foreach ($currentObject in $csCustomObjects) {
         }
 
         # do some validations here
-        if ($currentLine -notmatch "TargetFramework|ProductVersion|OutputType|AppDesignerFolder") {
+        if ($currentLine -notmatch "TargetFramework|ProductVersion|OutputType|AppDesignerFolder|AssemblyInfo\.cs") {
             continue
         }
 
         $myStrs = $currentLine | Split-StringValue -Separators @("</", "<", ">")
         if ($myStrs.Count -lt 3) {
+            if ($myStrs -is [string]) {
+                # single string
+                $myStrs = @($myStrs)
+            }
+
+            if (($myStrs[0] -as [string]).Contains("AssemblyInfo")) {
+                $currentObject["HasAssemblyInfo"] = $true
+            }
+
             # not what we are expecting
             continue
         }
@@ -53,7 +62,11 @@ $csCustomObjects | ForEach-Object {
 
     "$($_["TargetFrameworkVersion"])" | Write-Host -NoNewline -ForegroundColor DarkGreen
     " Product($($_["ProductVersion"]))" | Write-Host -NoNewline -ForegroundColor Cyan
-    " InfoFolder($($_["AppDesignerFolder"]))" | Write-Host -NoNewline -ForegroundColor DarkMagenta
+    if ($_["AppDesignerFolder"]) {
+        " InfoFolder($($_["AppDesignerFolder"]))" | Write-Host -NoNewline -ForegroundColor DarkMagenta
+    } elseif ($_["HasAssemblyInfo"]) {
+        " HasAssemblyInfo" | Write-Host -NoNewline -ForegroundColor DarkMagenta
+    }
     " Output($($_["OutputType"]))" | Write-Host -NoNewline -ForegroundColor DarkRed
     
     "" | Write-Host
