@@ -12,7 +12,9 @@ $csProjFiles = (((Get-ChildItem -Recurse -Path $Path).FullName |
             $_.EndsWith(".csproj", $true, $null) 
         }))
 
-$csCustomObjects = $csProjFiles | ForEach-Object { @{ "Path" = "$_"; "Content" = (Get-Content -Path $_) } }
+$csCustomObjects = $csProjFiles | ForEach-Object { 
+    @{ "Path" = "$_"; "Content" = (Get-Content -Path $_) }
+}
 
 
 foreach ($currentObject in $csCustomObjects) {
