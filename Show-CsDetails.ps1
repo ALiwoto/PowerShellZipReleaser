@@ -73,5 +73,20 @@ $csCustomObjects | ForEach-Object {
     $currentIndex++
 }
 
+# TODO: Add a new feature for displaying the attributes set in AssemblyInfo.cs file.
+# NOTE: AssemblyInfo.cs file is usually placed at Properties/AssemblyInfo.cs path at
+# PROECT_ROOT_DIRECTORY. (I personally haven't seen it bein placed at any other path).
+# There are two ways to refer to this file in .csproj file:
+# 1- Including the Properties\ directory as <AppDesignerFolder>Properties</AppDesignerFolder>
+# 2- Having it under <ItemGroup>...</ItemGroup> parent attribute as:
+#   <Compile Include="Properties\AssemblyInfo.cs" />
+# 
+# Here is a simple regex to find the `AssemblyFileVersion("1.1.1.1")` line in the content
+# of `AssemblyInfo.cs` file.
+$versionString = [RegEx]::Match("CONTENT_HERE","(AssemblyFileVersion\("")(?:\d+\.\d+\.\d+\.\d+)(""\))")
+$versionString | Write-Host
 
+# NOTE: parts of comments above will be remove in future release of this script file.
+# The regex part will be removed as well, and instead will be *used* to find the version
+# defined in the AssemblyInfo in real situation, not only as a sample.
 
