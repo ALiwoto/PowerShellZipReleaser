@@ -25,7 +25,7 @@ foreach ($currentObject in $csCustomObjects) {
         }
 
         # do some validations here
-        if ($currentLine -notmatch "TargetFramework|ProductVersion|OutputType") {
+        if ($currentLine -notmatch "TargetFramework|ProductVersion|OutputType|AppDesignerFolder") {
             continue
         }
 
@@ -53,6 +53,7 @@ $csCustomObjects | ForEach-Object {
 
     "$($_["TargetFrameworkVersion"])" | Write-Host -NoNewline -ForegroundColor DarkGreen
     " Product($($_["ProductVersion"]))" | Write-Host -NoNewline -ForegroundColor Cyan
+    " InfoFolder($($_["AppDesignerFolder"]))" | Write-Host -NoNewline -ForegroundColor DarkMagenta
     " Output($($_["OutputType"]))" | Write-Host -NoNewline -ForegroundColor DarkRed
     
     "" | Write-Host
