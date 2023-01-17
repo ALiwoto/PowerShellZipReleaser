@@ -18,4 +18,8 @@ A simple but efficient zip-releaser powershell script for packing .NET projects 
   5- destination path to store the zip file(s):
         At this step, the script will ask you to give the destination path to the final zip file(s).
 
+## Todo:
+ - [ ] Task1
+ - [ ] Task2
+
 
